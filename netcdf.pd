@@ -14,7 +14,7 @@ binary gridded files via PDL objects.
   use PDL::NetCDF;
   use PDL::Char;
 
-  my $ncobj = PDL::NetCDF->new ("test.nc");  # New file
+  my $ncobj = PDL::NetCDF->new ("test.nc", {REVERSE_DIMS => 1});  # New file
   my $pdl = pdl [[1, 2, 3], [4, 5, 6]];
 
   # Specify variable name to put PDL in, plus names of the dimensions.  Dimension         
@@ -54,6 +54,9 @@ binary gridded files via PDL objects.
   # $attr1 = [1,2,3]
   my $attr1 = $ncobj->getatt ('double_attribute', 'var1');
 
+  # $type = PDL::double
+  my $type = $ncobj->getvariabletype('var1');
+
   # Write a textual, global attribute.  'attr_name' is the attribute name.
   $ncobj->putatt ('The text of the global attribute', 'attr_name');          
 
@@ -77,8 +80,8 @@ netCDF version 3 library to make a subset of netCDF functionality
 available to PDL users in a clean, object-oriented interface.
 
 Another NetCDF perl interface, which allows access to the entire range
-of netCDF functionality (but in a rather C-ish non-object-oriented
-style) is available through Unidata at
+of netCDF functionality (but in a non-object-oriented
+style which uses perl arrays instead of PDLs) is available through Unidata at
 http://www.unidata.ucar.edu/packages/netcdf/index.html).
 
 The NetCDF standard allows N-dimensional binary data to be efficiently
@@ -107,15 +110,41 @@ Create an object representing a netCDF file.
     and dimension names and IDs each time.  Caution:  Undefined
     weirdness may occur if you pass the netCDF object from a dissimilar
     file!
+    MODE:
+    use sysopen file-opening arguments, O_RDONLY, O_RDWR, O_CREAT, O_EXCL
+    when used, this will overwrite the '>file.nc' type of opening
+    see L<perlopentut> for usage of O_RDONLY...
+    REVERSE_DIMS:
+    this will turn the order of the dimension-names of
+    netcdf-files. Even with this option the 'put' function will write
+    variables in FORTRAN order (as before) and will reverse the
+    dimension names so they fit this order.  With this option, the
+    'putslice' function will write varibles in the same way as 'put'.
+    You should use this option if your planning to work with other
+    netcdf-programs (ncview, NCL) or if you are planning to combine
+    putslice and slice.  You should _not_ use this option, if you need
+    compatibility to older versions of PDL::NetCDF.
 
 Example:
 
-  my $nc = PDL::NetCDF->new ("file1.nc");
+  my $nc = PDL::NetCDF->new ("file1.nc", {REVERSE_DIMS => 1});
   ...
   foreach my $ncfile (@a_bunch_of_similar_format_netcdf_files) {
     $nc = PDL::NetCDF->new("file2.nc", {TEMPLATE => $nc});  # These calls to 'new' are *much* faster
     ...
   }
+
+  # opening using MODE
+  use Fcntl; # define O_CREAT...
+  # opening a completely new file (deleting if it exists!)
+  my $newnc = PDL::NetCDF->new ("file2.nc", {MODE => O_CREAT|O_RDWR,
+					     REVERSE_DIMS => 1});
+  # opening existing file for reading and writing
+  $nc = PDL::NetCDF->new ("file2.nc", {MODE => O_RDWR}
+			REVERSE_DIMS => 1});
+  # opening existing file for reading only
+  $nc = PDL::NetCDF->new ("file2.nc", {MODE => O_RDONLY,
+				       REVERSE_DIMS => 1});
 
 If this file exists and you want to write to it, 
 prepend the name with the '>' character:  ">name.nc"
@@ -123,7 +152,7 @@ prepend the name with the '>' character:  ">name.nc"
 Returns:  The netCDF object.  Barfs if there is an error.
 
 =for example
-  $ncobj = PDL::NetCDF->new ("file.nc");
+  $ncobj = PDL::NetCDF->new ("file.nc",{REVERSE_DIMS => 1});
 
 =head2 put        
 
@@ -236,6 +265,11 @@ must be specified:
 
 3) A pdl which specifies the N dimensional count of the slice.
 
+Also, an options hashref may be passed.  The only option currently
+is 'NOCOMPRESS' which tells PDL::NetCDF to *not* try to uncompress 
+an compressed variable.  See the COMPRESS option on 'put' and 'putslice'
+for more info.
+
 Returns:
 The PDL representing the netCDF variable.  Barfs on error.
 
@@ -243,7 +277,7 @@ The PDL representing the netCDF variable.  Barfs on error.
 
   # A slice of the netCDF variable.
   # [0,0] is the starting point, [1,2] is the count.
-  my $slice  = $ncobj->get ('var1', [0,0], [1,2]);
+  my $slice  = $ncobj->get ('var1', [0,0], [1,2], {NOCOMPRESS => 1});
 
   # If var1 contains this:  [[1, 2, 3], [4, 5, 6]]
   # Then $slice contains: [1,2] (Size '1' dimensions are eliminated).
@@ -302,6 +336,28 @@ the input name.
 
   # Get an attribute associated with the varibale 'var1'
   my $attr1 = $ncobj->getatt ('double_attribute', 'var1');
+
+
+=head2 getvariabletype
+
+=for ref
+
+Get a type of a variable from a netCDF object.
+
+=for usage
+
+Arguments:
+
+1) The name of the variable.
+
+Returns:
+PDL::type or undef, when variable not defined
+
+=for example
+
+  # Get a type
+  my $type = $ncobj->getvariabletype ('var1');
+
 
 =head2 puttext
 
@@ -415,8 +471,8 @@ Get the attribute names for a given variable from an open NetCDF object.
 
 =for usage
 
-Arguments:
-Optional variable name, with no arguments it will return the objects global netcdf attributes.
+Arguments: Optional variable name, with no arguments it will return
+the objects global netcdf attributes.
 
 Returns:
 An array reference of attribute names
@@ -442,6 +498,49 @@ An array reference of variable names
 =for example
   
   my $varlist = $ncobj->getvariablenames();
+
+=head1 WRITING NetCDF-FILES EFFICIENTLY
+
+Writing several variables to NetCDF-files can take a long time. When a
+new variable is attached by C<put> to a file, the attribute header has
+to be written. This might force the internal netcdf-library to
+restructure the complete file, and thus might take very much
+IO-resources. By pre-defining the dimensions, attributes, and
+variables, much time can be saved. Essentially the rule of thumb is to
+define and write the data in the order it will be laid out in the
+file. Talking PDL::NetCDF, this means the following:
+
+=over 4
+
+=item Open the netcdf file
+
+    my $nc = new PDL::NetCDF('test.nc', {MODE => O_CREAT|O_RDWR,
+					 REVERSE_DIMS => 1});
+
+=item Write the global attributes
+
+    $nc->putatt (double([1,2,3]), 'double_attribute');
+
+=item Define all variables, make use of the NC_UNLIMITED dimension
+
+   # here it is possible to choose float/double/short/long
+   $pdl_init = long ([]);  
+   for (my $i=0; $i<$it; $i++) {
+       my $out2 = $nc->putslice("VAR$i",
+	   		     ['x','y','z','t'],
+		 	     [150,100,20,PDL::NetCDF::NC_UNLIMITED()],
+			     [0,0,0,0],[1,0,0,0],$pdl_init);
+   }
+
+=item Write the variable-attributes
+
+   $nc->putatt ("var-attr", 'attribute', 'VAR0'); 
+
+=item Write data with putslice
+
+    $nc->putslice("VAR5",[],[],[0,0,0,0],[$datapdl->dims],$datapdl);
+
+=back
 
 =head1 AUTHOR
 
@@ -469,7 +568,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.84';
+$VERSION = '0.86';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
@@ -664,7 +763,87 @@ EODEF
 pp_addpm (<<'EOPM');
 
 use Carp;
+use Fcntl; # importing constants O_CREAT,O_RDONLY,O_RDWR
+use constant DEBUG => 0;
 
+EOPM
+
+#-------------------------------------------------------------------------
+# netCDF constants
+#-------------------------------------------------------------------------
+
+pp_addpm (<<'EOPM');
+
+# These defines are taken from netcdf.h  I deemed this cleaner than using
+# h2xs and the autoload stuff, which mixes alkwardly with PP.
+sub NC_FILL_BYTE () { return -127; }
+sub NC_FILL_CHAR () { return 0; }
+sub NC_FILL_SHORT () { return -32767; }
+sub NC_FILL_INT () { return -2147483647; }
+sub NC_FILL_FLOAT () { return 9.9692099683868690e+36; } # near 15 * 2^119 
+sub NC_FILL_DOUBLE () { return 9.9692099683868690e+36; }
+
+sub NC_CLOBBER () { return 0; }
+sub NC_NOWRITE () { return 0; }
+sub NC_WRITE () { return 0x1; } # read & write 
+sub NC_NOCLOBBER () { return 0x4; } # Don't destroy existing file on create 
+sub NC_FILL () { return 0; }	 # argument to ncsetfill to clear NC_NOFILL 
+sub NC_NOFILL () { return 0x100; }  # Don't fill data section an records 
+sub NC_LOCK () { return 0x0400; }   # Use locking if available 
+sub NC_SHARE () { return 0x0800; }  # Share updates, limit cacheing 
+sub NC_UNLIMITED () {  return 0; }
+sub NC_GLOBAL () { return -1; }
+
+sub NC_MAX_DIMS () { return 100; }  # max dimensions per file 
+sub NC_MAX_ATTRS () { return 2000; }# max global or per variable attributes 
+sub NC_MAX_VARS () { return 2000; } # max variables per file 
+sub NC_MAX_NAME () { return 128; }	 # max length of a name 
+sub NC_MAX_VAR_DIMS () { return NC_MAX_DIMS; } # max per variable dimensions
+
+sub NC_NOERR () { return 0; }       # No Error 
+sub NC_EBADID () { return -33; }    # Not a netcdf id 
+sub NC_ENFILE () { return -34; }    # Too many netcdfs open 
+sub NC_EEXIST () { return -35; }    # netcdf file exists && NC_NOCLOBBER 
+sub NC_EINVAL () { return -36; }    # Invalid Argument 
+sub NC_EPERM  () { return -37; }    # Write to read only 
+sub NC_ENOTINDEFINE () { return -38; } # Operation not allowed in data mode 
+sub NC_EINDEFINE () { return -39; } # Operation not allowed in define mode 
+sub NC_EINVALCOORDS () { return -40; } # Index exceeds dimension bound 
+sub NC_EMAXDIMS () { return -41; }  # NC_MAX_DIMS exceeded 
+sub NC_ENAMEINUSE () { return -42; }# String match to name in use 
+sub NC_ENOTATT () { return -43; }   # Attribute not found 
+sub NC_EMAXATTS () { return -44; }  # NC_MAX_ATTRS exceeded 
+sub NC_EBADTYPE () { return -45; }  # Not a netcdf data type 
+sub NC_EBADDIM () { return -46; }   # Invalid dimension id or name 
+sub NC_EUNLIMPOS () { return -47; } # NC_UNLIMITED in the wrong index 
+sub NC_EMAXVARS () { return -48; }	 # NC_MAX_VARS exceeded 
+sub NC_ENOTVAR () { return -49; }	 # Variable not found 
+sub NC_EGLOBAL () { return -50; }	 # Action prohibited on NC_GLOBAL varid 
+sub NC_ENOTNC () { return -51; }	 # Not a netcdf file 
+sub NC_ESTS   () { return -52; }	 # In Fortran, string too short 
+sub NC_EMAXNAME () { return -53; }	 # NC_MAX_NAME exceeded 
+sub NC_EUNLIMIT () { return -54; }	 # NC_UNLIMITED size already in use 
+sub NC_ENORECVARS () { return -55; }# nc_rec op when there are no record vars 
+sub NC_ECHAR () { return -56; }	 # Attempt to convert between text & numbers 
+sub NC_EEDGE () { return -57; }	 # Edge+start exceeds dimension bound 
+sub NC_ESTRIDE () { return -58; }	 # Illegal stride 
+sub NC_EBADNAME () { return -59; }	 # Attribute or variable name
+sub NC_ERANGE () { return -60; }	 # Math result not representable 
+sub NC_ENOMEM () { return -61; }	 # Memory allocation (malloc) failure 
+sub NC_SYSERR () { return (-31)};
+
+sub NC_FATAL () { return 1};        # quit on netcdf error
+sub NC_VERBOSE () { return 2};      # give verbose error messages
+
+sub NC_BYTE () { return 1; }        # signed 1 byte integer 
+sub NC_CHAR () { return 2; }        # ISO/ASCII character 
+sub NC_SHORT () { return 3; }	 # signed 2 byte integer 
+sub NC_INT () { return 4; }	 # signed 4 byte integer 
+sub NC_FLOAT () { return 5; }       # single precision floating point number 
+sub NC_DOUBLE () { return 6; }	 # double precision floating point number 
+EOPM
+
+pp_addpm (<<'EOPM');
 # Used for creating new blank pdls with the input number of dimensions, and
 # the correct type.
 my %typemap = (
@@ -775,11 +954,44 @@ sub new {
     $fast = 1;
     $self = $$opt{TEMPLATE};	
   } 
+  if ((exists $$opt{REVERSE_DIMS} ) && $$opt{REVERSE_DIMS}) {
+      $self->{REVERSE_DIMS} = 1;
+  }
 
   my $rc;
   my $write;
 
-  if (substr($file, 0, 1) eq '>') { # open for writing
+  if (exists($$opt{MODE})) { # write-mode
+      if ($file =~ s/^\s*>//) {
+	  carp "MODE set and $file starts with >: suppressing >";
+      }
+      my $create;
+      if (($$opt{MODE} | O_CREAT | O_RDONLY | O_RDWR | O_EXCL) !=
+	  (O_CREAT | O_RDONLY | O_RDWR | O_EXCL)) {
+	  croak "unknown mode, only defined: O_CREAT,O_RDONLY,O_RDWR,O_EXCL";
+      } elsif ($$opt{MODE} & O_EXCL) {
+	  croak "opening O_EXCL, but file $file exists"
+	      if (-f $file);
+      } elsif ($$opt{MODE} & O_CREAT) {
+	  my $create = 1;
+	  if (-f $file) {
+	      unlink $file 
+		  or croak "Cannot remove $file: $!";
+	  }
+      } elsif ($$opt{MODE} & O_RDONLY) {
+	  $write = 0;
+	  unless (-f $file) {
+	      croak "Cannot open readonly! No such file: $file";
+	  }
+      } elsif ($$opt{MODE} & O_RDWR) {
+	  $write = 1;
+	  unless (-f $file) {
+	      unless ($create) {
+		  croak "Cannot open rdwr! No such file: $file";
+	      }
+	  }
+      } 
+  } elsif (substr($file, 0, 1) eq '>') { # open for writing
     $file = substr ($file, 1);      # chop off >
     $write = 1;
   }
@@ -820,7 +1032,7 @@ sub new {
 
     $rc = PDL::NetCDF::nc_inq ($self->{NCID}, $ndims=-999, $nvars=-999, $ngatts=-999, $unlimid=-999);
     croak ("new:  Cannot inquire -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
-
+    $self->{UNLIMID} = $unlimid;
     
     for (my $i=0;$i<$ndims;$i++) {
       $rc = PDL::NetCDF::nc_inq_dimname ($self->{NCID}, $i, 
@@ -953,6 +1165,10 @@ sub getdimensionnames {
       push(@$dimnames,$_) if $self->{DIMIDS}{$_} == $id;
     }
   }
+
+  if ($self->{REVERSE_DIMS}) {
+      $dimnames = [ reverse @$dimnames ];
+  }
   $dimnames;
 }
 
@@ -961,6 +1177,7 @@ sub getdimensionnames {
 sub getvariablenames {
   our $self = shift;
   my @varnames = ();
+  return [()] unless (exists $self->{VARIDS});
   for my $varn (keys %{$self->{VARIDS}}){
     next if($self->{VARIDS}{$varn} == NC_GLOBAL());
     push (@varnames, $varn);
@@ -990,6 +1207,10 @@ sub put {
   my $dims  = shift;  # set of dimensions, i.e. ['dim1', 'dim2']
   my $pdl   = shift;  # PDL to put
   my $opt   = shift || {};
+  
+  if ($self->{REVERSE_DIMS}) {
+      $dims = [ reverse @$dims ];
+  }
 
   croak "Cannot write read-only netCDF file $self->{FILENM}" if ($self->{WR} eq 'r');
 
@@ -1130,8 +1351,15 @@ sub putslice {
 
   my $start = shift;  # ref to perl array containing start of hyperslab to get
   my $count = shift;  # ref to perl array containing count along each dimension
-
+  
   my $pdl   = shift;  # PDL to put
+  
+  if ($self->{REVERSE_DIMS}) {
+      $dims = [ reverse @$dims ];
+      $dimdefs = [ reverse @$dimdefs ];
+      $start = [ reverse @$start ];
+      $count = [ reverse @$count ];
+  }
 
   croak "Cannot write read-only netCDF file $self->{FILENM}" if ($self->{WR} eq 'r');
 
@@ -1155,6 +1383,7 @@ sub putslice {
 				$self->{DIMIDS}{$$dims[$i]}=-999);
       croak ("put:  Cannot define dimension -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
 
+      $self->{UNLIMID} = $self->{DIMIDS}{$$dims[$i]} if ($dimlens[$i] == PDL::NetCDF::NC_UNLIMITED());
       $self->{DIMLENS}{$$dims[$i]} = $dimlens[$i];
 
     }
@@ -1193,9 +1422,9 @@ sub putslice {
 
   # Get out of define mode
   if ($self->{DEFINE}) {
-    my $rc = PDL::NetCDF::nc_enddef ($self->{NCID});
-    croak ("put:  Cannot end define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
-    $self->{DEFINE} = 0;
+      my $rc = PDL::NetCDF::nc_enddef ($self->{NCID});
+      croak ("put:  Cannot end define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+      $self->{DEFINE} = 0;
   }
 
     # Convert start and count from perl lists to scalars
@@ -1238,12 +1467,23 @@ sub get {
   my $self  = shift;
   my $varnm = shift;
 
+  # separate options hash (if present) from the rest of the args
+  my ($opt) = grep { ref($_) =~ /HASH/ } @_;
+  my @args  = grep { ref($_) !~ /HASH/ } @_;
+
   my $rc = 0;
 
   # Optional variables
-  my $start = shift;  # ref to perl array containing start of hyperslab to get
-  my $count = shift;  # ref to perl array containing count along each dimension
-
+  my $start = shift @args;  # ref to perl array containing start of hyperslab to get
+  my $count = shift @args;  # ref to perl array containing count along each dimension
+  if ($self->{REVERSE_DIMS}) {
+      if (defined $start) {
+	  $start = [ reverse @$start ];
+      }
+      if (defined $count) {
+	  $count = [ reverse @$count ];
+      }
+  }
   croak ("Cannot find variable $varnm") if (!defined($self->{VARIDS}{$varnm}));
 
   my $pdl; # The PDL to return
@@ -1313,10 +1553,42 @@ pp_addpm (<<'EOPM');
 
     # Get the data
     if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
-      my $f = ${$pdl->get_dataref};
-      $rc = PDL::NetCDF::nc_get_var_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $f);
-      ${$pdl->get_dataref} = $f;	
-      $pdl->upd_data();
+
+      # If the first dim is the unlimited dim, this PDL needs to be read in slices
+      # by unlimited dimension.  D. Hunt 1/17/2003
+      if ($self->{UNLIMID} == $dimids->at(0)) {
+        for (my $j=0;$j<$cnt[0];$j++) {
+          my $t = ' ' x ($pdl->nelem/$cnt[0]);
+          my $start = [$j,map { 0 } @cnt[1..$#cnt]];
+	  my $count = [1,@cnt[1..$#cnt]];
+
+EOPM
+
+#------------------------------------------------------------------------------------------------------
+# Add these statements for machines w/64 bit longs
+if ($Config{'longsize'} == 8) { pp_addpm ('
+    my @start = map { $_,0 } @$start; # Intersperse zeros if we want 64 bit size_t
+    my @count = map { $_,0 } @$count; # Intersperse zeros if we want 64 bit size_t
+    my $st = pack ("L*", @start);
+    my $ct = pack ("L*", @count);
+');
+} else { pp_addpm ('
+    my $st = pack ("L*", @$start);
+    my $ct = pack ("L*", @$count);
+'); }
+#------------------------------------------------------------------------------------------------------
+
+pp_addpm (<<'EOPM');
+
+          $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $t);	
+          $pdl->setstr($j, $t);
+        }
+      } else {
+        my $f = ${$pdl->get_dataref};
+        $rc = PDL::NetCDF::nc_get_var_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $f);
+        ${$pdl->get_dataref} = $f;	
+        $pdl->upd_data();
+      }
     } else {
       $rc = &{$typemap4{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $pdl);
     }
@@ -1327,25 +1599,27 @@ pp_addpm (<<'EOPM');
   #
   ## If this variable is compressed (simple netCDF offset/scale compression) then uncompress it.
   #
-  if (defined (my $type = $self->{ATTTYPE}{$varnm}{'scale_factor'})) {
-    my $scale_factor = $self->getatt('scale_factor', $varnm);
-    my $add_offset   = $self->getatt('add_offset',   $varnm);
-    my $fill         = eval { $self->getatt('_FillValue',   $varnm); };
-    my $uncomp;
-    if      ($type == NC_FLOAT()) {
-      $uncomp = $pdl->float;  # create output PDL of float type
-      $uncomp->inplace->setvaltobad($fill) if (defined($fill));
-      $uncomp += 2**15;  # change signed short vals to unsigned short vals
-    } elsif ($type == NC_DOUBLE()) {
-      $uncomp = $pdl->double;  # create output PDL of float type
-      $uncomp->inplace->setvaltobad($fill) if (defined($fill));
-      $uncomp += 2**31;  # change signed long vals to unsigned long vals
+   unless ($opt->{NOCOMPRESS}) {
+    if (defined (my $type = $self->{ATTTYPE}{$varnm}{'scale_factor'})) {
+	my $scale_factor = $self->getatt('scale_factor', $varnm);
+        my $add_offset   = $self->getatt('add_offset',   $varnm);
+        my $fill         = eval { $self->getatt('_FillValue',   $varnm); };
+        $fill = $fill->at(0) if (ref($fill) =~ /PDL/);	# convert to perl scalar
+        my $uncomp;
+      if      ($type == NC_FLOAT()) {
+        $uncomp = $pdl->float;  # create output PDL of float type
+        $uncomp->inplace->setvaltobad($fill) if (defined($fill));
+        $uncomp += 2**15;  # change signed short vals to unsigned short vals
+      } elsif ($type == NC_DOUBLE()) {
+        $uncomp = $pdl->double;  # create output PDL of float type
+        $uncomp->inplace->setvaltobad($fill) if (defined($fill));
+        $uncomp += 2**31;  # change signed long vals to unsigned long vals
+      }
+      $uncomp *= $scale_factor;
+      $uncomp += $add_offset;
+      return $uncomp;
     }
-    $uncomp *= $scale_factor;
-    $uncomp += $add_offset;
-    return $uncomp;
   }
-
   return $pdl;
 }
 EOPM
@@ -1495,7 +1769,16 @@ sub getatt {
   return $pdl;
 
 }
-
+# Get the PDL-type of a variable
+sub getvariabletype {
+    my $self = shift;
+    my $varnm = shift;
+    unless (defined $self->{DATATYPES}{$varnm}) {
+	# carp ("getvariabletype: variable $varnm not found, returning undef");
+	return undef;
+    }
+    return $typemap1{$self->{DATATYPES}{$varnm}}();
+}
 
 # Put a perl string into a multi-dimensional netCDF object
 #
@@ -1655,81 +1938,6 @@ pp_addpm (<<'EOPM');
 }
 
 
-EOPM
-
-#-------------------------------------------------------------------------
-# netCDF constants
-#-------------------------------------------------------------------------
-
-pp_addpm (<<'EOPM');
-
-# These defines are taken from netcdf.h  I deemed this cleaner than using
-# h2xs and the autoload stuff, which mixes alkwardly with PP.
-sub NC_FILL_BYTE { return -127; }
-sub NC_FILL_CHAR { return 0; }
-sub NC_FILL_SHORT { return -32767; }
-sub NC_FILL_INT { return -2147483647; }
-sub NC_FILL_FLOAT { return 9.9692099683868690e+36; } # near 15 * 2^119 
-sub NC_FILL_DOUBLE { return 9.9692099683868690e+36; }
-
-sub NC_CLOBBER { return 0; }
-sub NC_NOWRITE { return 0; }
-sub NC_WRITE { return 0x1; } # read & write 
-sub NC_NOCLOBBER { return 0x4; } # Don't destroy existing file on create 
-sub NC_FILL { return 0; }	 # argument to ncsetfill to clear NC_NOFILL 
-sub NC_NOFILL { return 0x100; }  # Don't fill data section an records 
-sub NC_LOCK { return 0x0400; }   # Use locking if available 
-sub NC_SHARE { return 0x0800; }  # Share updates, limit cacheing 
-sub NC_UNLIMITED {  return 0; }
-sub NC_GLOBAL { return -1; }
-
-sub NC_MAX_DIMS { return 100; }  # max dimensions per file 
-sub NC_MAX_ATTRS { return 2000; }# max global or per variable attributes 
-sub NC_MAX_VARS { return 2000; } # max variables per file 
-sub NC_MAX_NAME { return 128; }	 # max length of a name 
-sub NC_MAX_VAR_DIMS { return NC_MAX_DIMS; } # max per variable dimensions
-
-sub NC_NOERR { return 0; }       # No Error 
-sub NC_EBADID { return -33; }    # Not a netcdf id 
-sub NC_ENFILE { return -34; }    # Too many netcdfs open 
-sub NC_EEXIST { return -35; }    # netcdf file exists && NC_NOCLOBBER 
-sub NC_EINVAL { return -36; }    # Invalid Argument 
-sub NC_EPERM  { return -37; }    # Write to read only 
-sub NC_ENOTINDEFINE { return -38; } # Operation not allowed in data mode 
-sub NC_EINDEFINE { return -39; } # Operation not allowed in define mode 
-sub NC_EINVALCOORDS { return -40; } # Index exceeds dimension bound 
-sub NC_EMAXDIMS { return -41; }  # NC_MAX_DIMS exceeded 
-sub NC_ENAMEINUSE { return -42; }# String match to name in use 
-sub NC_ENOTATT { return -43; }   # Attribute not found 
-sub NC_EMAXATTS { return -44; }  # NC_MAX_ATTRS exceeded 
-sub NC_EBADTYPE { return -45; }  # Not a netcdf data type 
-sub NC_EBADDIM { return -46; }   # Invalid dimension id or name 
-sub NC_EUNLIMPOS { return -47; } # NC_UNLIMITED in the wrong index 
-sub NC_EMAXVARS { return -48; }	 # NC_MAX_VARS exceeded 
-sub NC_ENOTVAR { return -49; }	 # Variable not found 
-sub NC_EGLOBAL { return -50; }	 # Action prohibited on NC_GLOBAL varid 
-sub NC_ENOTNC { return -51; }	 # Not a netcdf file 
-sub NC_ESTS   { return -52; }	 # In Fortran, string too short 
-sub NC_EMAXNAME { return -53; }	 # NC_MAX_NAME exceeded 
-sub NC_EUNLIMIT { return -54; }	 # NC_UNLIMITED size already in use 
-sub NC_ENORECVARS { return -55; }# nc_rec op when there are no record vars 
-sub NC_ECHAR { return -56; }	 # Attempt to convert between text & numbers 
-sub NC_EEDGE { return -57; }	 # Edge+start exceeds dimension bound 
-sub NC_ESTRIDE { return -58; }	 # Illegal stride 
-sub NC_EBADNAME { return -59; }	 # Attribute or variable name
-sub NC_ERANGE { return -60; }	 # Math result not representable 
-sub NC_ENOMEM { return -61; }	 # Memory allocation (malloc) failure 
-sub NC_SYSERR { return (-31)};
-
-sub NC_FATAL { return 1};        # quit on netcdf error
-sub NC_VERBOSE { return 2};      # give verbose error messages
-
-sub NC_BYTE { return 1; }        # signed 1 byte integer 
-sub NC_CHAR { return 2; }        # ISO/ASCII character 
-sub NC_SHORT { return 3; }	 # signed 2 byte integer 
-sub NC_INT { return 4; }	 # signed 4 byte integer 
-sub NC_FLOAT { return 5; }       # single precision floating point number 
-sub NC_DOUBLE { return 6; }	 # double precision floating point number 
 EOPM
 
 #-------------------------------------------------------------------------

@@ -33,7 +33,5 @@ Revision history for Perl extension PDL::NetCDFobj
         - Changed barfs to croaks--give error info from point of view of caller
         - Fixed two bugs in getdimensionnames and gettext:  Failed to check 
           existance of $self->{VARIDS}{$varnm} before making netcdf library call.
-	- Changed 'fast' option on new() to the more general {TEMPLATE => } option.
-	- Added options for compression and decompression of netCDF files to/from
-	  PDLs.  Uses (mostly) standard netCDF offset/multiplier compression.
+
 
