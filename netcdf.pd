@@ -568,7 +568,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.88';
+$VERSION = '0.89';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
@@ -1451,10 +1451,8 @@ EOPM
 #------------------------------------------------------------------------------------------------------
 # Add these statements for machines w/64 bit longs    
 if ($Config{'longsize'} == 8) { pp_addpm ('
-    my @start = map { $_,0 } @$start; # Intersperse zeros if we want 64 bit size_t
-    my @count = map { $_,0 } @$count; # Intersperse zeros if we want 64 bit size_t
-    my $st = pack ("L*", @start);
-    my $ct = pack ("L*", @count);
+    my $st = pack ("Q*", @$start);
+    my $ct = pack ("Q*", @$count);
 ');
 } else { pp_addpm ('
     my $st = pack ("L*", @$start);
@@ -1526,10 +1524,8 @@ EOPM
 #------------------------------------------------------------------------------------------------------
 # Add these statements for machines w/64 bit longs    
 if ($Config{'longsize'} == 8) { pp_addpm ('
-    my @start = map { $_,0 } @$start; # Intersperse zeros if we want 64 bit size_t
-    my @count = map { $_,0 } @$count; # Intersperse zeros if we want 64 bit size_t
-    my $st = pack ("L*", @start);
-    my $ct = pack ("L*", @count);
+    my $st = pack ("Q*", @$start);
+    my $ct = pack ("Q*", @$count);
 ');
 } else { pp_addpm ('
     my $st = pack ("L*", @$start);
@@ -1591,10 +1587,8 @@ EOPM
 #------------------------------------------------------------------------------------------------------
 # Add these statements for machines w/64 bit longs
 if ($Config{'longsize'} == 8) { pp_addpm ('
-    my @start = map { $_,0 } @$start; # Intersperse zeros if we want 64 bit size_t
-    my @count = map { $_,0 } @$count; # Intersperse zeros if we want 64 bit size_t
-    my $st = pack ("L*", @start);
-    my $ct = pack ("L*", @count);
+    my $st = pack ("Q*", @$start);
+    my $ct = pack ("Q*", @$count);
 ');
 } else { pp_addpm ('
     my $st = pack ("L*", @$start);
@@ -1891,10 +1885,8 @@ EOPM
 #------------------------------------------------------------------------------------------------------
 # Add these statements for machines w/64 bit longs    
 if ($Config{'longsize'} == 8) { pp_addpm ('
-    my @start = map { $_,0 } ((0) x $ndims); # Intersperse zeros if we want 64 bit size_t
-    my @count = map { $_,0 } @$dimlens; # Intersperse zeros if we want 64 bit size_t
-    my $st = pack ("L*", @start);
-    my $ct = pack ("L*", @count);
+    my $st = pack ("Q*", ((0) x $ndims));
+    my $ct = pack ("Q*", @$dimlens);
 ');
 } else { pp_addpm ('
     my $st = pack ("L*", ((0) x $ndims));
@@ -1955,10 +1947,8 @@ EOPM
 #------------------------------------------------------------------------------------------------------
 # Add these statements for machines w/64 bit longs    
 if ($Config{'longsize'} == 8) { pp_addpm ('
-    my @start = map { $_,0 } ((0) x $ndims); # Intersperse zeros if we want 64 bit size_t
-    my @count = map { $_,0 } @dims; # Intersperse zeros if we want 64 bit size_t
-    my $st = pack ("L*", @start);
-    my $ct = pack ("L*", @count);
+    my $st = pack ("Q*", ((0) x $ndims));
+    my $ct = pack ("Q*", @dims);
 ');
 } else { pp_addpm ('
     my $st = pack ("L*", ((0) x $ndims));

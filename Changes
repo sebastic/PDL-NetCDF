@@ -39,3 +39,7 @@ Revision history for Perl extension PDL::NetCDFobj
           attributes and variables as perl scalars, not as PDLs.
         - Added the PDL_BAD option to convert 'missing_value' or '_FillValue' 
           numbers in a netCDF variable as PDL BADVALS.
+
+0.89  04/21/2004
+        - Added support for 64 bit little endian machines such as IBM AIX 
+          machines.  (Thanks to Jim Edwards).
