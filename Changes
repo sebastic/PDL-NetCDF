@@ -26,3 +26,20 @@ to get all names starting with NC_ and nc.
 
 Lastly, the object oriented interface now includes a function to
 get the size of a dimension, $dimsize = $ncobj->dimsize('dimname');
+
+
+0.32  3/25/97
+
+Fixed a nasty bug in ncvarget.  Before it had returned PDLs in class PDL::Core 
+instead of class PDL.  This meant that overloaded functions did not work on 
+these PDLs.  So, one could not say, for example:
+
+$ncobj = PDL::NetCDF->new('file.nc');
+$pdl1 = $ncobj->get('var1');
+$pdl2 = $ncobj->get('var1');
+$pdl3 = $pdl1 - $pdl2;
+
+$pdl3 would not have what you expected.
+
+I also fixed the single quote problem in Makefile.PL pointed out by
+Christian Soeller.

@@ -120,7 +120,7 @@ require DynaLoader;
 	     ncopts
 	     ncerr
 	     );
-$VERSION = '0.31';
+$VERSION = '0.33';
 
 sub AUTOLOAD {
     if (@_ > 1) {
@@ -176,7 +176,7 @@ sub new {
 
   if (substr($file, 0, 1) eq '>') { # open for writing
 
-    die "Object-oriented write functions not yet implemented.  Use traditional interface";
+    croak "Object-oriented write functions not yet implemented.  Use traditional interface";
 
     $file = substr ($file, 1);      # chop off >
     
@@ -295,7 +295,7 @@ sub DESTROY {
 # This would better be done in the PDL code itself.  The
 # PDL::zeroes routine always defaults to float--it should be
 # made flexible enough to create any type PDL.
-# This routine pretends it is in class PDL::Core.
+# This routine pretends it is in class PDL.
 #
 # Create zero filled array (function/inheritable constructor).
 # Allow user to specify the type of the PDL
@@ -347,7 +347,7 @@ sub ncvarget {
   # Create empty PDL (of correct type and size) to hold output from NetCDF file
   my @cnt = grep {$_ != 1} @$count; # Get rid of length-one dimensions
   if (@cnt == 0) { $cnt[0] = 1; }   # If no dimensions left, add one single length one.
-  my $pdl = typed_zeroes('PDL::Core', [reverse @cnt], $typemap{$datatype});
+  my $pdl = typed_zeroes('PDL', [reverse @cnt], $typemap{$datatype});
 
   # Get the data
   $rc = ncvargetscalar($ncid, $varid, $start, $count, $pdl->{Data});
