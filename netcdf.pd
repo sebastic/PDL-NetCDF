@@ -467,7 +467,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.79';
+$VERSION = '0.80';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
@@ -1037,7 +1037,7 @@ sub put {
 
   # Call the correct 'put' routine depending on PDL type
   if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
-    $rc = PDL::NetCDF::nc_put_var_text ($self->{NCID}, $self->{VARIDS}{$varnm}, ${$pdl->get_dataref});
+    $rc = PDL::NetCDF::nc_put_var_text ($self->{NCID}, $self->{VARIDS}{$varnm}, ${$pdl->get_dataref}."\0"); # null terminate!
   } else {
     $rc = &{$typemap2{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $pdl);
   }
@@ -1150,7 +1150,7 @@ if ($Config{'longsize'} == 8) { pp_addpm ('
 pp_addpm (<<'EOPM');
   # Call the correct 'put' routine depending on PDL type
   if(ref($pdl) =~ /Char/)  {  # a PDL::Char type PDL--write a netcdf char variable
-    $rc = PDL::NetCDF::nc_put_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, ${$pdl->get_dataref});
+    $rc = PDL::NetCDF::nc_put_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, ${$pdl->get_dataref}."\0"); # null terminate!
   } else {
     $rc = &{$typemap8{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $pdl);
   }
@@ -1213,7 +1213,9 @@ pp_addpm (<<'EOPM');
 
     # Get the data
     if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
-      $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, ${$pdl->get_dataref});
+      my $f = ${$pdl->get_dataref} . "\0"; # null terminate!
+      $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $f);
+      ${$pdl->get_dataref} = $f;	
       $pdl->upd_data();
     } else {
       $rc = &{$typemap7{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $pdl);
@@ -1242,7 +1244,9 @@ pp_addpm (<<'EOPM');
 
     # Get the data
     if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
-      $rc = PDL::NetCDF::nc_get_var_text ($self->{NCID}, $self->{VARIDS}{$varnm}, ${$pdl->get_dataref});
+      my $f = ${$pdl->get_dataref} . "\0"; # null terminate!
+      $rc = PDL::NetCDF::nc_get_var_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $f);
+      ${$pdl->get_dataref} = $f;	
       $pdl->upd_data();
     } else {
       $rc = &{$typemap4{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $pdl);
@@ -1320,7 +1324,7 @@ sub putatt {
 
     # Put the attribute
     my $rc = PDL::NetCDF::nc_put_att_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $attnm,
-			      length($att), $att);
+			      length($att), $att."\0"); # null terminate!
     barf ("putatt:  Cannot put string attribute -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
 
 #
@@ -1381,7 +1385,7 @@ sub getatt {
   if ($datatype == NC_CHAR()) {
 
     $rc = PDL::NetCDF::nc_get_att_text ($self->{NCID}, $self->{VARIDS}{$varnm}, 
-			   $attnm, my $str='x' x $attlen);
+			   $attnm, my $str=('x' x $attlen)."\0"); # null terminate!
     barf ("getatt:  Cannot get text attribute -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
 
     return $str;
@@ -1489,7 +1493,7 @@ if ($Config{'longsize'} == 8) { pp_addpm ('
 pp_addpm (<<'EOPM');
 
   # Call the 'put' routine 
-  $rc = PDL::NetCDF::nc_put_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $str);
+  $rc = PDL::NetCDF::nc_put_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $str."\0"); # null terminate!
   barf ("put:  Cannot write file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
   
   $rc = PDL::NetCDF::nc_sync($self->{NCID});
@@ -1548,7 +1552,7 @@ if ($Config{'longsize'} == 8) { pp_addpm ('
 
 pp_addpm (<<'EOPM');
 
-  $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, my $str='x' x $total_size);
+  $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, my $str=('x' x $total_size)."\0"); # null terminate!
   barf ("gettext:  Cannot get text variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
 
   return $str;
