@@ -6,11 +6,11 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..63\n"; }
+BEGIN { $| = 1; print "1..64\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use PDL;
 use PDL::OO;
-use PDL::NetCDF;
+use PDL::NetCDF qw(/^nc/ /^NC_/);
 $loaded = 1;
 print "ok 1\n";
 
@@ -276,7 +276,7 @@ $rc = ncclose($ncid);
 print( (($rc == 0) ? "ok ": "not ok "), "59\n" ); 
 
 #
-## Test object-oriented variable and attribute fetching
+## Test object-oriented interface
 #
 $obj = PDL::NetCDF->new ('foo.nc');
 
@@ -297,6 +297,9 @@ $att = $obj->getatt('att_double', 'fixvar');
 $cmp = double $att_double;
 $ok = ($cmp == $att)->sum == $cmp->nelem;
 print( ($ok ? "ok ": "not ok "), "63\n" );
+
+$dim1sz = $obj->dimsize ('dim1');
+print( (($dim1sz == 3) ? "ok ": "not ok "), "64\n" );
 
 print "Removing test file, foo.nc\n";
 unlink "foo.nc";

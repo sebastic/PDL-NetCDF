@@ -10,3 +10,19 @@ Revision history for Perl extension PDL::NetCDF.
         - Now includes object oriented (read only) interface.
         - Also, imports all constants as NC_FOO and all subroutines
           as ncfoo.
+
+0.31  3/18/97
+
+Added new function typed_zeroes, which should be in PDL::Core.
+This function does what 'zeroes' does, but allows the user to specify
+the type of the PDL.  Before, I was using, for example, byte(zeroes(2,3))
+which results in lots of copying.  Using typed_zeroes ([2,3], $PDL_B) is much
+more efficient.
+
+Also, I no longer export the world; I just put it in export_OK.
+This means that in order to use the traditional interface, you must
+use PDL::NetCDF qw (/^NC_/ /^nc/);
+to get all names starting with NC_ and nc.
+
+Lastly, the object oriented interface now includes a function to
+get the size of a dimension, $dimsize = $ncobj->dimsize('dimname');
