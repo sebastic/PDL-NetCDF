@@ -1577,12 +1577,8 @@ int arg;
     errno = 0;
     switch (*(name+3)) {
     case 'A':
-	if (strEQ(name, "NC_ATTRIBUTE"))
-	    return NC_ATTRIBUTE;
 	break;
     case 'B':
-	if (strEQ(name, "NC_BITFIELD"))
-	    return NC_BITFIELD;
 	if (strEQ(name, "NC_BYTE"))
 	    return NC_BYTE;
 	break;
@@ -1591,12 +1587,8 @@ int arg;
 	    return NC_CHAR;
 	if (strEQ(name, "NC_CLOBBER"))
 	    return NC_CLOBBER;
-	if (strEQ(name, "NC_CREAT"))
-	    return NC_CREAT;
 	break;
     case 'D':
-	if (strEQ(name, "NC_DIMENSION"))
-	    return NC_DIMENSION;
 	if (strEQ(name, "NC_DOUBLE"))
 	    return NC_DOUBLE;
 	break;
@@ -1647,8 +1639,6 @@ int arg;
 	    return NC_EUNLIMIT;
 	if (strEQ(name, "NC_EUNLIMPOS"))
 	    return NC_EUNLIMPOS;
-	if (strEQ(name, "NC_EXCL"))
-	    return NC_EXCL;
 	if (strEQ(name, "NC_EXDR"))
 	    return NC_EXDR;
 	break;
@@ -1677,24 +1667,14 @@ int arg;
 	    return NC_GLOBAL;
 	break;
     case 'H':
-	if (strEQ(name, "NC_HDIRTY"))
-	    return NC_HDIRTY;
-	if (strEQ(name, "NC_HSYNC"))
-	    return NC_HSYNC;
 	break;
     case 'I':
-	if (strEQ(name, "NC_IARRAY"))
-	    return NC_IARRAY;
-	if (strEQ(name, "NC_INDEF"))
-	    return NC_INDEF;
 	break;
     case 'J':
 	break;
     case 'K':
 	break;
     case 'L':
-	if (strEQ(name, "NC_LINK"))
-	    return NC_LINK;
 	if (strEQ(name, "NC_LONG"))
 	    return NC_LONG;
 	break;
@@ -1713,8 +1693,6 @@ int arg;
 	    return MAX_VAR_DIMS;
 	break;
     case 'N':
-	if (strEQ(name, "NC_NDIRTY"))
-	    return NC_NDIRTY;
 	if (strEQ(name, "NC_NOCLOBBER"))
 	    return NC_NOCLOBBER;
 	if (strEQ(name, "NC_NOERR"))
@@ -1723,8 +1701,6 @@ int arg;
 	    return NC_NOFILL;
 	if (strEQ(name, "NC_NOWRITE"))
 	    return NC_NOWRITE;
-	if (strEQ(name, "NC_NSYNC"))
-	    return NC_NSYNC;
 	break;
     case 'O':
 	break;
@@ -1733,14 +1709,10 @@ int arg;
     case 'Q':
 	break;
     case 'R':
-	if (strEQ(name, "NC_RDWR"))
-	    return NC_RDWR;
 	break;
     case 'S':
 	if (strEQ(name, "NC_SHORT"))
 	    return NC_SHORT;
-	if (strEQ(name, "NC_STRING"))
-	    return NC_STRING;
 	if (strEQ(name, "NC_SYSERR"))
 	    return NC_SYSERR;
 	break;
@@ -1749,12 +1721,8 @@ int arg;
     case 'U':
 	if (strEQ(name, "NC_UNLIMITED"))
 	    return NC_UNLIMITED;
-	if (strEQ(name, "NC_UNSPECIFIED"))
-	    return NC_UNSPECIFIED;
 	break;
     case 'V':
-	if (strEQ(name, "NC_VARIABLE"))
-	    return NC_VARIABLE;
 	if (strEQ(name, "NC_VERBOSE"))
 	    return NC_VERBOSE;
 	break;

@@ -120,7 +120,7 @@ require DynaLoader;
 	     ncopts
 	     ncerr
 	     );
-$VERSION = '0.33';
+$VERSION = '0.34';
 
 sub AUTOLOAD {
     if (@_ > 1) {

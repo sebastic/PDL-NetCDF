@@ -138,7 +138,7 @@ print( (($status >= 0) ? "ok ": "not ok "), "23\n" );
 #
 # Open netCDF file.
 #
-$ncid = ncopen('foo.nc', NC_RDWR);
+$ncid = ncopen('foo.nc', NC_NOWRITE);
 print( (($ncid >= 0) ? "ok ": "not ok "), "24\n" );
 
 #

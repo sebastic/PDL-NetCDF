@@ -43,3 +43,8 @@ $pdl3 would not have what you expected.
 
 I also fixed the single quote problem in Makefile.PL pointed out by
 Christian Soeller.
+
+
+0.34 9/26/97
+
+Updated to use netcdf-3.3.1.
