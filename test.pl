@@ -68,6 +68,10 @@ my $dimnames = $obj1->getdimensionnames;
 $ok = grep(/^dim1$/,@$dimnames) + grep(/^dim2$/,@$dimnames) + grep(/^n_string$/,@$dimnames) + grep(/^n_station$/,@$dimnames);
 print( ($ok==4 ? "ok ": "not ok "), "9\n" ); 
 
+my $dimnames = $obj1->getdimensionnames ("var2");
+$ok = grep(/^dim1$/,@$dimnames) + grep(/^dim2$/,@$dimnames);
+print( ($ok==2 ? "ok ": "not ok "), "9.1\n" ); 
+
 $pdl = pdl [[1,2,3], [4,5,6]];
 $obj1->put ('var1', ['dim1', 'dim2'], $pdl);
 $pdl1 = $obj1->get ('var1');
@@ -138,9 +142,6 @@ print( ($ok ? "ok ": "not ok "), "23\n" );
 $out2 = $obj->get ('var1', [0,1], [1,1]);
 $ok = ($out2 == pdl[2])->sum == $out2->nelem;
 print( ($ok ? "ok ": "not ok "), "24\n" ); 
-
-
-
 
 # Test with a bogus file
 open (IN, ">bogus.nc");

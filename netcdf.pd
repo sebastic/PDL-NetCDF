@@ -46,7 +46,7 @@ binary gridded files via PDL objects.
   # A slice of the netCDF variable.
   # [0,0] is the starting point, [1,2] is the count.
   # $slice = [1,2]
-  my $slice  = $ncobj->get ('var1', pdl([0,0]), pdl([1,2]));
+  my $slice  = $ncobj->get ('var1', [0,0], [1,2]);
 
   # Attach a double attribute of size 3 to var1
   $ncobj->putatt (double([1,2,3]), 'double_attribute', 'var1');
@@ -226,7 +226,7 @@ The PDL representing the netCDF variable.  Barfs on error.
 
   # A slice of the netCDF variable.
   # [0,0] is the starting point, [1,2] is the count.
-  my $slice  = $ncobj->get ('var1', pdl([0,0]), pdl([1,2]));
+  my $slice  = $ncobj->get ('var1', [0,0], [1,2]);
 
   # If var1 contains this:  [[1, 2, 3], [4, 5, 6]]
   # Then $slice contains: [1,2] (Size '1' dimensions are eliminated).
@@ -367,11 +367,13 @@ close whenever the netCDF object passes out of scope.
 
   $ncobj->close();
 
-=head2 getdimensionnames
+=head2 getdimensionnames ([$varname])
 
 =for ref
 
-Get all the dimension names from an open NetCDF object.
+Get all the dimension names from an open NetCDF object.  
+If a variable name is specified, just return dimension names for
+*that* variable.
 
 =for usage
 
@@ -406,6 +408,24 @@ An array reference of attribute names
   
   my $attlist = $ncobj->getattributenames('var1');
 
+=head2 getvariablenames
+
+=for ref
+
+Get all the variable names for an open NetCDF object.
+
+=for usage
+
+Arguments:
+ none.
+
+Returns:
+An array reference of variable names
+
+=for example
+  
+  my $varlist = $ncobj->getvariablenames();
+
 =head1 AUTHOR
 
 Doug Hunt, dhunt\@ucar.edu.
@@ -432,7 +452,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.74';
+$VERSION = '0.76';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
@@ -857,16 +877,30 @@ sub DESTROY {
   $self->close;
 }
 
-# Get the name of all dimensions
+# Get the names and order of dimensions in a variable, otherwise
+# get the names of all dimensions
 sub getdimensionnames {
   my $self = shift;
+  my $varnm = shift;
   my $dimnames = [];
-  foreach(keys %{$self->{DIMIDS}}){
-    push(@$dimnames,$_);
+  my $dimids = [values %{$self->{DIMIDS}}];
+  if (defined $varnm) {
+    my $ndims;
+    my $rc = PDL::NetCDF::nc_inq_varndims ($self->{NCID}, $self->{VARIDS}{$varnm}, $ndims=-999);
+    $dimids = zeroes (PDL::long, $ndims);
+    $rc |= PDL::NetCDF::nc_inq_vardimid ($self->{NCID}, $self->{VARIDS}{$varnm}, $dimids);
+    barf ("getdimensionnames:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+        $dimids = [list $dimids];
+  }
+  foreach my $id (@$dimids) {
+    foreach(keys %{$self->{DIMIDS}}){
+      push(@$dimnames,$_) if $self->{DIMIDS}{$_} == $id;
+    }
   }
   $dimnames;
-} 
+}
 
+# Return the names of all variables in the netCDF file.
 sub getvariablenames {
   my $self = shift;
   my $varnames = [];
@@ -877,6 +911,7 @@ sub getvariablenames {
   $varnames;
 } 
 
+# Return the names of all attribute names in the netCDF file.
 sub getattributenames {
   my $self = shift;
   my $varname = shift;
@@ -888,7 +923,6 @@ sub getattributenames {
   $attnames;
 } 
 
-   
 # Put a netCDF variable from a PDL
 sub put {
   my $self  = shift;  # name of object
