@@ -25,7 +25,10 @@ Revision history for Perl extension PDL::NetCDFobj
         - Added the ability to reuse an old netCDF object for the 'new' call for similar files.
           This speeds up the reading of many similar netCDF files considerably.
 
-0.81  4/11/2002
-        - Backed out a change which seems to break reading multi-dimension strings into PDL::Chars.
-	- Added NetCDF.pm to the MANIFEST to CPAN will recognize that this module should go in the
-          PDL directory
+0.81  5/15/2002
+        - Added Environment variables NETCDF_LIBDIR and NETCDF_INCDIR which
+          you can use to tell where to find netcdf.
+0.82  8/28/2002
+        - Added PREREQ_PM for PDL version 2.2 or later to satisfy CPANPLUS email.
+
+

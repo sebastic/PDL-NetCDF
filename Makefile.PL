@@ -9,6 +9,7 @@ use Config;
 #
 
 foreach my $libdir (
+		    $ENV{NETCDF_LIBDIR},
 		    '/usr/local/netcdf/lib',
 		    '/usr/local/lib',
 		    '/opt/local/lib',
@@ -36,6 +37,7 @@ Please add the correct library path to Makefile.PL or install NetCDF"
   unless defined ($netcdf_lib_path);
 
 foreach my $incdir (
+		    $ENV{NETCDF_INCDIR},
 		    '/usr/local/netcdf/include',
 		    '/usr/local/include',
 		    '/opt/local/include',
@@ -61,14 +63,13 @@ if ($Config{'osname'} =~ linux) {
   $define_bool = '-Dbool=int';
   print "Defining bool=int (linux seems to need this)\n";
 }
-
-# Included to allow CPAN to detect inheritance from PDL
-# and include in PDL modules directory.            
-rename 'NetCDF.pm', 'NetCDF.pm.old' if -f 'NetCDF.pm';
+            
 
 $package = ["netcdf.pd",NetCDF,PDL::NetCDF];
 WriteMakefile(
 	      'NAME'  	     => 'PDL::NetCDF',
+	      'AUTHOR'       => 'Douglas Hunt (dhunt@ucar.edu)',
+	      'PREREQ_PM'    => { PDL => 2.2 },
 	      'CCFLAGS'      => "$define_bool -g",  
 	      'VERSION_FROM' => 'netcdf.pd',
 	      'TYPEMAPS'     => [&PDL_TYPEMAP()], 

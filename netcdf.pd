@@ -467,7 +467,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.81';
+$VERSION = '0.82';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
@@ -1213,7 +1213,7 @@ pp_addpm (<<'EOPM');
 
     # Get the data
     if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
-      my $f = ${$pdl->get_dataref}; 
+      my $f = ${$pdl->get_dataref} . "\0"; # null terminate!
       $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $f);
       ${$pdl->get_dataref} = $f;	
       $pdl->upd_data();
@@ -1244,7 +1244,7 @@ pp_addpm (<<'EOPM');
 
     # Get the data
     if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
-      my $f = ${$pdl->get_dataref}; 
+      my $f = ${$pdl->get_dataref} . "\0"; # null terminate!
       $rc = PDL::NetCDF::nc_get_var_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $f);
       ${$pdl->get_dataref} = $f;	
       $pdl->upd_data();

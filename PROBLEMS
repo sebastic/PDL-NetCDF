@@ -30,6 +30,15 @@ files are installed.  If this fails (perl Makefile.PL will die with a message ab
 the lib or include file), please add the correct path to libnetcdf.so or netcdf.h on your system
 to Makefile.PL (or install netCDF).
 
+-- One may also export the environment variables NETCDF_LIBDIR and NETCDF_INCDIR to
+   specify where to find netcdf.  Example (assuming ksh or bash):
+
+   export NETCDF_LIBDIR='/ops/tools/lib'
+   export NETCDF_INCDIR='/ops/tools/include'
+   perl Makefile.PL
+   ...
+
+
 
 
 

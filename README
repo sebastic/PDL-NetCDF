@@ -10,15 +10,6 @@ The following are required for installation:
 
 -- PDL v2.0.3+ (MUST have PDL::Char module to work!)
 
---------------------------------------------------------------------------
-NOTE: If you have an older version of PDL (version 2.0.3 or older)
-which does not have PDL::Char, you should use version 0.63 of PDL::NetCDF.
-A version of PDL with PDL::Char is currently (2/1/00) only on the CVS
-source tree at Source Forge (http://sourceforge.net/cvs/?group_id=612).
-
-A new released version with PDL::Char should be available soon.
---------------------------------------------------------------------------
-
 If you want to use the old version of pdl (pdl 1.11), please
 use PDL::NetCDF version 0.34, also available on CPAN.  
 
