@@ -97,8 +97,23 @@ Create an object representing a netCDF file.
 
 =for usage      	
 
-Arguments:  
-1) The name of the file.
+ Arguments:  
+ 1) The name of the file.
+ 2) (optional) An existing netCDF object for a file with
+    identical layout.  This allows one to read in many similar netCDF
+    files without incurring the overhead of reading in all variable
+    and dimension names and IDs each time.  Caution:  Undefined
+    weirdness may occur if you pass the netCDF object from a dissimilar
+    file!
+
+Example:
+
+  my $nc = PDL::NetCDF->new ("file1.nc");
+  ...
+  foreach my $ncfile (@a_bunch_of_similar_format_netcdf_files) {
+    $nc = PDL::NetCDF->new("file2.nc", $nc);  # These calls to 'new' are *much* faster
+    ...
+  }
 
 If this file exists and you want to write to it, 
 prepend the name with the '>' character:  ">name.nc"
@@ -452,7 +467,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.76';
+$VERSION = '0.79';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
@@ -737,8 +752,19 @@ my %typemap8 = (
 sub new {
   my $type = shift;
   my $file = shift;
+  my $self = shift;
 
-  my $self = {};
+  my $fast = 0;  # fast new does not inquire about all variables and dimensions.
+                 # This is assumed to have been done before.  All this info
+                 # is taken from the previous nc object.  This is useful
+	         # if one has to process many identical netCDF files.
+
+  if (defined($self)) {
+    $fast = 1;
+  } else {
+    $self = {};
+  }
+
   my $rc;
   my $write;
 
@@ -765,6 +791,13 @@ sub new {
       $self->{DEFINE} = 0;
 
     }
+
+    # Record file name
+    $self->{FILENM} = $file;
+
+    # don't bother to inquire about this file.  The info in the nc object 
+    # passed in should suffice.
+    return $self if ($fast);
 
     # Find out about variables, dimensions and global attributes in this file
     my ($ndims, $nvars, $ngatts, $unlimid);
@@ -862,6 +895,7 @@ sub new {
   $self->{FILENM} = $file;
 
   bless $self, $type;
+  return $self;
 }
 
 # Explicitly close a netCDF file and free the object
@@ -887,10 +921,16 @@ sub getdimensionnames {
   if (defined $varnm) {
     my $ndims;
     my $rc = PDL::NetCDF::nc_inq_varndims ($self->{NCID}, $self->{VARIDS}{$varnm}, $ndims=-999);
-    $dimids = zeroes (PDL::long, $ndims);
-    $rc |= PDL::NetCDF::nc_inq_vardimid ($self->{NCID}, $self->{VARIDS}{$varnm}, $dimids);
-    barf ("getdimensionnames:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
-        $dimids = [list $dimids];
+
+
+    if ($ndims > 0) {
+      $dimids = zeroes (PDL::long, $ndims);
+      $rc |= PDL::NetCDF::nc_inq_vardimid ($self->{NCID}, $self->{VARIDS}{$varnm}, $dimids);
+      barf ("getdimensionnames:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+      $dimids = [list $dimids];
+    } else {
+      $dimids = [];
+    }
   }
   foreach my $id (@$dimids) {
     foreach(keys %{$self->{DIMIDS}}){
@@ -936,7 +976,8 @@ sub put {
 
   my @dimlens = reverse $pdl->dims;
 
-  my $dimids = zeroes (PDL::long, scalar(@dimlens));
+  my $dimids = (@dimlens > 0) ? zeroes (PDL::long, scalar(@dimlens)) : pdl [];
+
   for (my $i=0;$i<@$dims;$i++) {
     if (!defined($self->{DIMIDS}{$$dims[$i]})) {
 
@@ -1129,6 +1170,8 @@ sub get {
   my $self  = shift;
   my $varnm = shift;
 
+  my $rc = 0;
+
   # Optional variables
   my $start = shift;  # ref to perl array containing start of hyperslab to get
   my $count = shift;  # ref to perl array containing count along each dimension
@@ -1181,8 +1224,8 @@ pp_addpm (<<'EOPM');
 
     # Determine the type of this variable
     my ($ndims, $natts, $i);
-    $rc |= PDL::NetCDF::nc_inq_varndims ($self->{NCID}, $self->{VARIDS}{$varnm}, $ndims=-999);
-    my $dimids = zeroes (PDL::long, $ndims);
+    $rc = PDL::NetCDF::nc_inq_varndims ($self->{NCID}, $self->{VARIDS}{$varnm}, $ndims=-999);
+    my $dimids = ($ndims > 0) ? zeroes (PDL::long, $ndims) : pdl [];
     $rc |= PDL::NetCDF::nc_inq_vardimid ($self->{NCID}, $self->{VARIDS}{$varnm}, $dimids);
     barf ("get:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
     
@@ -1464,7 +1507,7 @@ sub gettext {
   
   # Determine the type of this variable
   my ($ndims, $natts, $i, $rc);
-  $rc |= PDL::NetCDF::nc_inq_varndims ($self->{NCID}, $self->{VARIDS}{$varnm}, $ndims=-999);
+  $rc = PDL::NetCDF::nc_inq_varndims ($self->{NCID}, $self->{VARIDS}{$varnm}, $ndims=-999);
   my $dimids = zeroes (PDL::long, $ndims);
   $rc |= PDL::NetCDF::nc_inq_vardimid ($self->{NCID}, $self->{VARIDS}{$varnm}, $dimids);
   barf ("get:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    

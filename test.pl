@@ -39,6 +39,12 @@ print( ($ok ? "ok ": "not ok "), "2\n" );
 $ok = ($in1 == $out1)->sum == $in1->nelem;
 print( ($ok ? "ok ": "not ok "), "3\n" ); 
 
+$in3 = pdl 1;
+$obj->put ('zeroDim', [], $in3);
+$out3 = $obj->get ('zeroDim');
+$ok = ($in3 == $out3);
+print( ($ok ? "ok ": "not ok "), "3.1\n" ); 
+
 $dims  = pdl $in1->dims;
 $dims1 = pdl $out1->dims;
 $ok = ($dims == $dims1)->sum == $dims->nelem;

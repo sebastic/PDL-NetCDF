@@ -19,3 +19,8 @@ Revision history for Perl extension PDL::NetCDFobj
           NetCDF character N-dimensional data as strings.  
 
         - NOW REQUIRES PDL::Char (from a recent PDL version) to work!!
+
+0.78  1/20/2001
+        - Added read support for zero dimensional variables (variables with no dimension, just a scalar)
+        - Added the ability to reuse an old netCDF object for the 'new' call for similar files.
+          This speeds up the reading of many similar netCDF files considerably.
