@@ -14,3 +14,8 @@ Revision history for Perl extension PDL::NetCDFobj
 
 	  Changed name to PDL::NetCDF
 
+0.70  12/16/99
+        - Added support in 'get' and 'put' for PDL::Char type PDLs to read/write
+          NetCDF character N-dimensional data as strings.  
+
+        - NOW REQUIRES PDL::Char (from a recent PDL version) to work!!

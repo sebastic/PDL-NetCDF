@@ -1,4 +1,4 @@
-PDL::NetCDF, version 0.63
+PDL::NetCDF, version 0.71
 
 Allows reading and writing of NetCDF files into and out of PDL objects using
 a simple object-oriented interface.  NetCDF is a flexible, binary, portable
@@ -6,22 +6,18 @@ file standard for storing gridded data.  One can access netCDF files through
 interface libraries in FORTRAN, C/C++ and perl.  Numerous utilities also exist
 for manipulating these files.
 
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
-NOTE:  This package *used* to be called PDL::NetCDFobj.  The *old* PDL::NetCDF
-was a quick re-write of the NetCDF perl package available from unidata
-(http://www.unidata.ucar.edu/packages/netcdf) to return PDLs instead of nested
-perl lists.
-
-This package is a new, higher-level, 
-object-oriented interface to netCDF, which is more tightly integrated to PDL.
-The old PDL::NetCDF is no longer supported.
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
-
 The following are required for installation:
 
--- PDL v2.0 or above 
+-- PDL v2.0.3+ (MUST have PDL::Char module to work!)
+
+--------------------------------------------------------------------------
+NOTE: If you have an older version of PDL (version 2.0.3 or older)
+which does not have PDL::Char, you should use version 0.63 of PDL::NetCDF.
+A version of PDL with PDL::Char is currently (2/1/00) only on the CVS
+source tree at Source Forge (http://sourceforge.net/cvs/?group_id=612).
+
+A new released version with PDL::Char should be available soon.
+--------------------------------------------------------------------------
 
 If you want to use the old version of pdl (pdl 1.11), please
 use PDL::NetCDF version 0.34, also available on CPAN.  
@@ -33,48 +29,6 @@ The first two are available on CPAN.  The third is available from UCAR UNIDATA
 at 
 
 http://www.unidata.ucar.edu/packages/netcdf/index.html
-
-
-SYNOPSIS:
-
-use PDL;
-use PDL::NetCDFobj;
-
-my $ncobj = PDL::NetCDFobj->new ("test.nc");  # New file
-my $pdl = pdl [[1, 2, 3], [4, 5, 6]];
-
-# Specify variable name to put PDL in, plus names of the dimensions.  Dimension
-# lengths are taken from the PDL, in this case, dim1 = 2 and dim2 = 3.      
-$ncobj->put ('var1', ['dim1', 'dim2'], $pdl); 
-
-my $pdlout = $ncobj->get ('var1'); # $pdlout = [[1, 2, 3], [4, 5, 6]]
-
-# Store textual NetCDF arrays using perl strings:  (This is a bit primitive, but works)
-my $str = "Station1  Station2  Station3  ";
-$obj->puttext('textvar', ['n_station', 'n_string'], [3,10], $str);
-my $outstr = $obj->gettext('textvar');
-# $outstr = "Station1  Station2  Station3  "
-
-my $dim1size = $ncobj->dimsize('dim1'); # $dim1size = 2
-
-# A slice of the netCDF variable.
-# [0,0] is the starting point, [1,2] is the count.
-my $slice  = $ncobj->get ('var1', [0,0], [1,2]); # $slice = [1,2]
-
-# Attach a double attribute of size 3 to var1
-$ncobj->putatt (double([1,2,3]), 'double_attribute', 'var1');
-
-my $attr1 = $ncobj->getatt ('double_attribute', 'var1'); # $attr1 = [1,2,3]
-
-# Write a textual, global attribute.  'attr_name' is the attribute name.
-$ncobj->putatt ('The text of the global attribute', 'attr_name');          
-
-my $attr2 = $ncobj->getatt ('attr_name'); 
-# $attr2 = 'The text of the global attribute'
-
-# Close the netCDF file.  The file is also automatically closed in a DESTROY block
-# when it passes out of scope.  This just makes is explicit.
-$ncobj->close;
 
 
 INSTALLATION:

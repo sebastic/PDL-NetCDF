@@ -12,6 +12,7 @@ binary gridded files via PDL objects.
 
   use PDL;
   use PDL::NetCDF;
+  use PDL::Char;
 
   my $ncobj = PDL::NetCDF->new ("test.nc");  # New file
   my $pdl = pdl [[1, 2, 3], [4, 5, 6]];
@@ -28,6 +29,16 @@ binary gridded files via PDL objects.
   $obj->puttext('textvar', ['n_station', 'n_string'], [3,10], $str);
   my $outstr = $obj->gettext('textvar');
   # $outstr = "Station1  Station2  Station3  "
+
+
+  # Now textual NetCDF arrays can be stored with PDL::Char style PDLs.  This is much
+  # more natural and flexible than the above method.
+  $str = PDL::Char->new (['Station1', 'Station2', 'Station3']);
+  $obj->put ('stations', ['dim_station', 'dim_charlen'], $str);
+  $outstr = $obj->get('stations');
+  print $outstr;
+  # Prints: ['Station1', 'Station2', 'Station3']
+  # For more info on PDL::Char variables see PDL::Char(3), or perldoc PDL::Char
 
   # $dim1size = 2
   my $dim1size = $ncobj->dimsize('dim1');
@@ -124,6 +135,14 @@ None.
   # Specify variable name to put PDL in, plus names of the dimensions.  Dimension         
   # lengths are taken from the PDL, in this case, dim1 = 2 and dim2 = 3.      
   $ncobj->put ('var1', ['dim1', 'dim2'], $pdl);                                               
+                                            
+  # Now textual NetCDF arrays can be stored with PDL::Char style PDLs.  
+  $str = PDL::Char->new (['Station1', 'Station2', 'Station3']);
+  $obj->put ('stations', ['dim_station', 'dim_charlen'], $str);
+  $outstr = $obj->get('stations');
+  print $outstr;
+  # Prints: ['Station1', 'Station2', 'Station3']
+  # For more info on PDL::Char variables see PDL::Char(3), or perldoc PDL::Char
 
 =head2 putslice
 
@@ -413,7 +432,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.63';
+$VERSION = '0.71';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
@@ -611,7 +630,7 @@ pp_addpm (<<'EOPM');
 # the correct type.
 my %typemap = (
 	       NC_BYTE()   => sub { PDL->zeroes (PDL::byte,   @_); },
-	       NC_CHAR()   => sub { PDL->zeroes (PDL::byte,   @_); },
+	       NC_CHAR()   => sub { PDL::Char->new(PDL->zeroes (PDL::byte,   @_)); },
 	       NC_SHORT()  => sub { PDL->zeroes (PDL::short,  @_); },
 	       NC_INT()    => sub { PDL->zeroes (PDL::long,   @_); },
 	       NC_FLOAT()  => sub { PDL->zeroes (PDL::float,  @_); },
@@ -917,7 +936,12 @@ sub put {
       $self->{DEFINE} = 1;
     }
 
-    my $datatype = $typemap3{$pdl->get_datatype};
+    my $datatype;
+    if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
+      $datatype = NC_CHAR();
+    } else {
+      $datatype = $typemap3{$pdl->get_datatype};
+    }
     my $rc = PDL::NetCDF::nc_def_var ($self->{NCID}, $varnm, $datatype, 
 			   scalar(@dimlens), $dimids, $self->{VARIDS}{$varnm}=-999);
     barf ("put:  Cannot define variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
@@ -937,7 +961,11 @@ sub put {
   }
 
   # Call the correct 'put' routine depending on PDL type
-  $rc = &{$typemap2{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $pdl);
+  if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
+    $rc = PDL::NetCDF::nc_put_var_text ($self->{NCID}, $self->{VARIDS}{$varnm}, ${$pdl->get_dataref});
+  } else {
+    $rc = &{$typemap2{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $pdl);
+  }
   barf ("put:  Cannot write file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
   
   $rc = PDL::NetCDF::nc_sync($self->{NCID});
@@ -1098,8 +1126,12 @@ if ($Config{'longsize'} == 8) { pp_addpm ('
 pp_addpm (<<'EOPM');
 
     # Get the data
-    $rc = &{$typemap7{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, 
-					   $st, $ct, $pdl);
+    if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
+      $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, ${$pdl->get_dataref});
+      $pdl->upd_data();
+    } else {
+      $rc = &{$typemap7{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $pdl);
+    }
     barf ("get:  Cannot get data -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
 
   } else { # get whole netCDF matrix
@@ -1123,7 +1155,12 @@ pp_addpm (<<'EOPM');
     $pdl = &{$typemap{$self->{DATATYPES}{$varnm}}}(reverse @cnt);	
 
     # Get the data
-    $rc = &{$typemap4{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $pdl);
+    if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
+      $rc = PDL::NetCDF::nc_get_var_text ($self->{NCID}, $self->{VARIDS}{$varnm}, ${$pdl->get_dataref});
+      $pdl->upd_data();
+    } else {
+      $rc = &{$typemap4{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $pdl);
+    }
     barf ("get:  Cannot get data -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
   
   }

@@ -6,10 +6,11 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..20\n"; }
+BEGIN { $| = 1; print "1..21\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use PDL;
 use PDL::NetCDF;
+use PDL::Char;
 $loaded = 1;
 print "ok 1\n";
 
@@ -48,48 +49,54 @@ eval { $obj->put ('var2', ['dim1', 'dim2'], $in2); }; # Dimension error
 $ok = ($@ =~ /Attempt to redefine length of dimension/);
 print( ($ok ? "ok ": "not ok "), "5\n" ); 
 
-$ok = !$obj->close;
+$pdlchar = PDL::Char->new ([['abc', 'def', 'hij'],['aaa', 'bbb', 'ccc']]);
+$obj->put ('varchar', ['dimc1', 'dimc2', 'dimc3'], $pdlchar);
+$charout = $obj->get('varchar');
+$ok = sum($pdlchar - $charout) == 0;
 print( ($ok ? "ok ": "not ok "), "6\n" ); 
+
+$ok = !$obj->close;
+print( ($ok ? "ok ": "not ok "), "7\n" ); 
 
 # Try again with existing file
 $obj1 = PDL::NetCDF->new ('>foo.nc');
 my $varnames = $obj1->getvariablenames;
 $ok = grep(/^var1$/,@$varnames) + grep(/^textvar$/,@$varnames);
-print( ($ok==2 ? "ok ": "not ok "), "7\n" ); 
+print( ($ok==2 ? "ok ": "not ok "), "8\n" ); 
 
 my $dimnames = $obj1->getdimensionnames;
 $ok = grep(/^dim1$/,@$dimnames) + grep(/^dim2$/,@$dimnames) + grep(/^n_string$/,@$dimnames) + grep(/^n_station$/,@$dimnames);
-print( ($ok==4 ? "ok ": "not ok "), "8\n" ); 
+print( ($ok==4 ? "ok ": "not ok "), "9\n" ); 
 
 $pdl = pdl [[1,2,3], [4,5,6]];
 $obj1->put ('var1', ['dim1', 'dim2'], $pdl);
 $pdl1 = $obj1->get ('var1');
 
 $ok = ($pdl1 == $pdl)->sum == $pdl->nelem;
-print( ($ok ? "ok ": "not ok "), "9\n" ); 
+print( ($ok ? "ok ": "not ok "), "10\n" ); 
 
 $dims  = pdl $pdl->dims;
 $dims1 = pdl $pdl1->dims;
 $ok = ($dims == $dims1)->sum == $dims->nelem;
-print( ($ok ? "ok ": "not ok "), "10\n" ); 
+print( ($ok ? "ok ": "not ok "), "11\n" ); 
 
 $attin = pdl [1,2,3];
 $rc = $obj1->putatt ($attin, 'double_attribute', 'var1');
-print( ($rc ? "not ok ": "ok "), "11\n" ); 
+print( ($rc ? "not ok ": "ok "), "12\n" ); 
 
 $attin2 = long [4,5];
 $rc = $obj1->putatt ($attin2, 'long_attribute', 'var1');
-print( ($rc ? "not ok ": "ok "), "12\n" ); 
+print( ($rc ? "not ok ": "ok "), "13\n" ); 
 
 $attout = $obj1->getatt ('double_attribute', 'var1');
 $ok = ($attin == $attout)->sum == $attin->nelem;
-print( ($ok ? "ok ": "not ok "), "13\n" ); 
+print( ($ok ? "ok ": "not ok "), "14\n" ); 
 
 $rc = $obj1->putatt ('Text Attribute', 'text_attribute');
-print( ($rc ? "not ok ": "ok "), "14\n" ); 
+print( ($rc ? "not ok ": "ok "), "15\n" ); 
 
 $attout = $obj1->getatt ('text_attribute');
-print( ($attout eq 'Text Attribute' ? "ok ": "not ok "), "15\n" ); 
+print( ($attout eq 'Text Attribute' ? "ok ": "not ok "), "16\n" ); 
 
 
 # Put Slices
@@ -101,20 +108,20 @@ $out2 = $obj->putslice('var2', ['dim1','dim2','dim3'],[2,3,2],[0,0,0],[2,3,1],$p
 
 $pdl2 = pdl [[7,8,9], [10,11,12]];
 $out2 = $obj->putslice('var2',[] ,[] ,[0,0,1],[2,3,1],$pdl2);
-print( ($rc ? "not ok ": "ok "), "16\n" ); 
+print( ($rc ? "not ok ": "ok "), "17\n" ); 
 
 # Get slices
 $out2 = $obj->get ('var1', [1,1], [1,1]);
 $ok = ($out2 == pdl[5])->sum == $out2->nelem;
-print( ($ok ? "ok ": "not ok "), "17\n" ); 
+print( ($ok ? "ok ": "not ok "), "18\n" ); 
 
 $out2 = $obj->get ('var1', [0,1], [2,1]);
 $ok = ($out2 == pdl[2,5])->sum == $out2->nelem;
-print( ($ok ? "ok ": "not ok "), "18\n" ); 
+print( ($ok ? "ok ": "not ok "), "19\n" ); 
 
 $out2 = $obj->get ('var1', [0,1], [1,1]);
 $ok = ($out2 == pdl[2])->sum == $out2->nelem;
-print( ($ok ? "ok ": "not ok "), "19\n" ); 
+print( ($ok ? "ok ": "not ok "), "20\n" ); 
 
 
 
@@ -125,7 +132,7 @@ print IN "I'm not a netCDF file\n";
 close IN;
 eval { $obj2 = PDL::NetCDF->new ('bogus.nc'); };
 $ok = ($@ =~ /Not a netCDF file/);
-print( ($ok ? "ok ": "not ok "), "20\n" ); 
+print( ($ok ? "ok ": "not ok "), "21\n" ); 
 
 BEGIN {
   if(-e 'foo.nc'){
