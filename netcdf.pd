@@ -432,7 +432,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.72';
+$VERSION = '0.74';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
@@ -1184,6 +1184,8 @@ sub dimsize {
   my $self  = shift;
   my $dimnm = shift;
   
+  barf ("dimsize: No such dimension -- $dimnm") unless exists ($self->{DIMIDS}{$dimnm});
+
   my ($dimsz, $name);
   my $rc = nc_inq_dimlen ($self->{NCID}, $self->{DIMIDS}{$dimnm}, $dimsz=-999);
   barf ("dimsize:  Cannot get dimension length -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
