@@ -6,7 +6,7 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..21\n"; }
+BEGIN { $| = 1; print "1..25\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use PDL;
 use PDL::NetCDF;
@@ -100,7 +100,6 @@ print( ($attout eq 'Text Attribute' ? "ok ": "not ok "), "16\n" );
 
 
 # Put Slices
-
 #
 # First slice needs dimids and values to define variable, subsequent slices do not.
 #
@@ -108,20 +107,37 @@ $out2 = $obj->putslice('var2', ['dim1','dim2','dim3'],[2,3,2],[0,0,0],[2,3,1],$p
 
 $pdl2 = pdl [[7,8,9], [10,11,12]];
 $out2 = $obj->putslice('var2',[] ,[] ,[0,0,1],[2,3,1],$pdl2);
-print( ($rc ? "not ok ": "ok "), "17\n" ); 
+print( ($out2 ? "not ok ": "ok "), "17\n" ); 
+
+$pdlchar = PDL::Char->new (['a  ','def','ghi']);
+$out2 = $obj->putslice('tvar', ['recNum','strlen'],[PDL::NetCDF::NC_UNLIMITED(),10],[0,0],[3,3],$pdlchar);
+print( ($out2 ? "not ok ": "ok "), "18\n" ); 
+
+$pdlchar = PDL::Char->new (['zzzz']);
+$out2 = $obj->putslice('tvar',[],[],[5,0],[1,4],$pdlchar);
+print( ($out2 ? "not ok ": "ok "), "19\n" ); 
+
+$svar = short(27);
+$out2 = $obj->putslice('svar', ['recNum'],[PDL::NetCDF::NC_UNLIMITED()],[0],[1],$svar);
+print( ($out2 ? "not ok ": "ok "), "20\n" ); 
+
+$svar = short(13);
+$out2 = $obj->putslice('svar', [],[],[8],[1],$svar);
+print( ($out2 ? "not ok ": "ok "), "21\n" ); 
+
 
 # Get slices
 $out2 = $obj->get ('var1', [1,1], [1,1]);
 $ok = ($out2 == pdl[5])->sum == $out2->nelem;
-print( ($ok ? "ok ": "not ok "), "18\n" ); 
+print( ($ok ? "ok ": "not ok "), "22\n" ); 
 
 $out2 = $obj->get ('var1', [0,1], [2,1]);
 $ok = ($out2 == pdl[2,5])->sum == $out2->nelem;
-print( ($ok ? "ok ": "not ok "), "19\n" ); 
+print( ($ok ? "ok ": "not ok "), "23\n" ); 
 
 $out2 = $obj->get ('var1', [0,1], [1,1]);
 $ok = ($out2 == pdl[2])->sum == $out2->nelem;
-print( ($ok ? "ok ": "not ok "), "20\n" ); 
+print( ($ok ? "ok ": "not ok "), "24\n" ); 
 
 
 
@@ -132,7 +148,7 @@ print IN "I'm not a netCDF file\n";
 close IN;
 eval { $obj2 = PDL::NetCDF->new ('bogus.nc'); };
 $ok = ($@ =~ /Not a netCDF file/);
-print( ($ok ? "ok ": "not ok "), "21\n" ); 
+print( ($ok ? "ok ": "not ok "), "25\n" ); 
 
 BEGIN {
   if(-e 'foo.nc'){

@@ -432,7 +432,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.71';
+$VERSION = '0.72';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
@@ -1029,8 +1029,13 @@ sub putslice {
       barf ("put:  Cannot put file into define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
       $self->{DEFINE} = 1;
     }
+    my $datatype;
+    if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
+      $datatype = NC_CHAR();
+    } else {
+      $datatype = $typemap3{$pdl->get_datatype};
+    }
 
-    my $datatype = $typemap3{$pdl->get_datatype};
     my $rc = PDL::NetCDF::nc_def_var ($self->{NCID}, $varnm, $datatype, 
 			   scalar(@dimlens), $dimids, $self->{VARIDS}{$varnm}=-999);
     barf ("put:  Cannot define variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
@@ -1069,7 +1074,11 @@ if ($Config{'longsize'} == 8) { pp_addpm ('
 
 pp_addpm (<<'EOPM');
   # Call the correct 'put' routine depending on PDL type
-  $rc = &{$typemap8{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $pdl);
+  if(ref($pdl) =~ /Char/)  {  # a PDL::Char type PDL--write a netcdf char variable
+    $rc = PDL::NetCDF::nc_put_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, ${$pdl->get_dataref});
+  } else {
+    $rc = &{$typemap8{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $pdl);
+  }
   barf ("put:  Cannot write file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
   
   $rc = PDL::NetCDF::nc_sync($self->{NCID});
