@@ -7,7 +7,7 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..32\n"; }
+BEGIN { $| = 1; print "1..36\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use PDL;
 use PDL::NetCDF;
@@ -97,7 +97,7 @@ $ok = !$nc1->close;
 print( ($ok ? "ok ": "not ok "), $nok++, "\n" );
 
 # Try rewriting an existing file
-$obj1 = PDL::NetCDF->new ('>foo.nc');
+$obj1 = PDL::NetCDF->new ('>foo.nc', {PERL_SCALAR => 1, PDL_BAD => 1});
 my $varnames = $obj1->getvariablenames;
 $ok = grep(/^var1$/,@$varnames) + grep(/^textvar$/,@$varnames);
 print( ($ok==2 ? "ok ": "not ok "), $nok++, "\n" ); 
@@ -126,6 +126,14 @@ $attin2 = long [4,5];
 $rc = $obj1->putatt ($attin2, 'long_attribute', 'var1');
 print( ($rc ? "not ok ": "ok "), $nok++, "\n" ); 
 
+$attin3 = long [4];
+$rc = $obj1->putatt ($attin3, 'long_attribute1', 'var1');
+print( ($rc ? "not ok ": "ok "), $nok++, "\n" ); 
+
+$attout = $obj1->getatt ('long_attribute1', 'var1');
+$ok = (!ref($attout) and $attout == 4);
+print( ($ok ? "ok ": "not ok "), $nok++, "\n" ); 
+
 $attout = $obj1->getatt ('double_attribute', 'var1');
 $ok = ($attin == $attout)->sum == $attin->nelem;
 print( ($ok ? "ok ": "not ok "), $nok++, "\n" ); 
@@ -136,6 +144,16 @@ print( ($rc ? "not ok ": "ok "), $nok++, "\n" );
 $attout = $obj1->getatt ('text_attribute');
 print( ($attout eq 'Text Attribute' ? "ok ": "not ok "), $nok++, "\n" ); 
 
+# test PDL_BAD option
+
+$pdl = pdl [[1,2,3], [4,5,-999]];
+$obj1->put ('var2', ['dim1', 'dim2'], $pdl);
+$attin = double([-999]);
+$rc = $obj1->putatt ($attin, '_FillValue', 'var2');
+print( ($rc ? "not ok ": "ok "), $nok++, "\n" ); 
+$pdl1 = $obj1->get ('var2');
+$ok = ($pdl1->nbad == 1);
+print( ($ok ? "ok ": "not ok "), $nok++, "\n" ); 
 
 # Put Slices
 #
@@ -166,7 +184,7 @@ print( ($out2 ? "not ok ": "ok "), $nok++, "\n" );
 
 # Get slices
 $out2 = $obj1->get ('var1', [1,1], [1,1]);
-$ok = ($out2 == pdl[5])->sum == $out2->nelem;
+$ok = ($out2 == 5);
 print( ($ok ? "ok ": "not ok "), $nok++, "\n" ); 
 
 $out2 = $obj1->get ('var1', [0,1], [2,1]);
@@ -174,7 +192,7 @@ $ok = ($out2 == pdl[2,5])->sum == $out2->nelem;
 print( ($ok ? "ok ": "not ok "), $nok++, "\n" ); 
 
 $out2 = $obj1->get ('var1', [0,1], [1,1]);
-$ok = ($out2 == pdl[2])->sum == $out2->nelem;
+$ok = ($out2 == 2);
 print( ($ok ? "ok ": "not ok "), $nok++, "\n" ); 
 
 

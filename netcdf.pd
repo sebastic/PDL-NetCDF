@@ -568,7 +568,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.86';
+$VERSION = '0.88';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
@@ -937,6 +937,15 @@ my %compressionMap = (
                       PDL::double->[0] => PDL::long->[0],
                       );
 
+# options one can specify in the call to new
+my %legalopts = (
+                 REVERSE_DIMS => 1,   # index in the C order, not the FORTRAN order
+                 TEMPLATE     => 1,   # initialize this nc object with contents of a previous object
+                 PERL_SCALAR  => 1,   # return single element PDLs as perl scalars
+                 PDL_BAD      => 1,   # return missing values as PDL bad values
+	         DEBUG        => 1,
+                );	
+
 # This routine hooks up an object to a NetCDF file.
 sub new {
   my $type = shift;
@@ -949,13 +958,22 @@ sub new {
                  # is taken from the previous nc object.  This is useful
 	         # if one has to process many identical netCDF files.
 
+  #
+  ## Handle options
+  #
+
   my $self = {};
+
   if (exists($$opt{TEMPLATE})) {
     $fast = 1;
     $self = $$opt{TEMPLATE};	
+    delete $$opt{TEMPLATE};
   } 
-  if ((exists $$opt{REVERSE_DIMS} ) && $$opt{REVERSE_DIMS}) {
-      $self->{REVERSE_DIMS} = 1;
+
+  foreach my $optname (keys %$opt) {
+    if ($legalopts{$optname}) {
+      $self->{$optname} = $$opt{$optname};
+    }
   }
 
   my $rc;
@@ -1175,15 +1193,15 @@ sub getdimensionnames {
 # Return the names of all variables in the netCDF file.  Special care
 # is taken to return them in the order defined in the file.
 sub getvariablenames {
-  our $self = shift;
+  my $self = shift;
   my @varnames = ();
   return [()] unless (exists $self->{VARIDS});
   for my $varn (keys %{$self->{VARIDS}}){
     next if($self->{VARIDS}{$varn} == NC_GLOBAL());
     push (@varnames, $varn);
   }
-  sub by_id { $self->{VARIDS}{$a} <=> $self->{VARIDS}{$b} };
-  @varnames = sort by_id (@varnames);
+
+  @varnames = sort { $self->{VARIDS}{$a} <=> $self->{VARIDS}{$b} } (@varnames);
   return \@varnames;
 } 
 
@@ -1471,6 +1489,8 @@ sub get {
   my ($opt) = grep { ref($_) =~ /HASH/ } @_;
   my @args  = grep { ref($_) !~ /HASH/ } @_;
 
+  print "In get(): self = $self, varnm = $varnm\n" if ($self->{DEBUG});
+
   my $rc = 0;
 
   # Optional variables
@@ -1539,6 +1559,8 @@ pp_addpm (<<'EOPM');
     my $dimids = ($ndims > 0) ? zeroes (PDL::long, $ndims) : pdl [];
     $rc = PDL::NetCDF::nc_inq_vardimid ($self->{NCID}, $self->{VARIDS}{$varnm}, $dimids);
     croak ("get:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+
+    print "In get(): ndims = $ndims, natts = $natts, dimids = $dimids\n" if ($self->{DEBUG});
     
     # Find out size of each dimension of this NetCDF matrix
     my ($name, $size, @cnt);
@@ -1550,6 +1572,8 @@ pp_addpm (<<'EOPM');
 
     # Create empty PDL (of correct type and size) to hold output from NetCDF file
     $pdl = &{$typemap{$self->{DATATYPES}{$varnm}}}(reverse @cnt);	
+
+    print "In get(): pdl = ", $pdl->info, " cnt = @cnt\n" if ($self->{DEBUG});
 
     # Get the data
     if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
@@ -1591,6 +1615,7 @@ pp_addpm (<<'EOPM');
       }
     } else {
       $rc = &{$typemap4{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $pdl);
+      print "In get(): rc = $rc, pdl[info, first, last] = ", $pdl->info, " ", $pdl->at(0), " ", $pdl->at($pdl->nelem-1), "\n" if ($self->{DEBUG});
     }
     croak ("get:  Cannot get data -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
 
@@ -1601,6 +1626,7 @@ pp_addpm (<<'EOPM');
   #
    unless ($opt->{NOCOMPRESS}) {
     if (defined (my $type = $self->{ATTTYPE}{$varnm}{'scale_factor'})) {
+        print "In get(): why am I uncompressing?\n" if ($self->{DEBUG});
 	my $scale_factor = $self->getatt('scale_factor', $varnm);
         my $add_offset   = $self->getatt('add_offset',   $varnm);
         my $fill         = eval { $self->getatt('_FillValue',   $varnm); };
@@ -1617,9 +1643,21 @@ pp_addpm (<<'EOPM');
       }
       $uncomp *= $scale_factor;
       $uncomp += $add_offset;
-      return $uncomp;
+      $pdl = $uncomp;
     }
   }
+
+  # convert netcdf missing values to PDL badvals if requested and missing value is available
+  if (exists($self->{PDL_BAD})) {
+    my $missing = eval { $self->getatt('_FillValue',   $varnm); };
+    $missing = eval { $self->getatt('missing_value',   $varnm); } unless (defined($missing));
+    $pdl->inplace->setvaltobad($missing) if (defined($missing));
+    print "In get(): missing = $missing, pdl[info, first, last] = ", $pdl->info, " ", $pdl->at(0), " ", $pdl->at($pdl->nelem-1), "\n" if ($self->{DEBUG});
+  }
+
+  # convert single value PDLs to perl scalars if requested
+  $pdl = (exists($self->{PERL_SCALAR}) and ($pdl->nelem == 1)) ? $pdl->at(0) : $pdl;
+
   return $pdl;
 }
 EOPM
@@ -1766,9 +1804,10 @@ sub getatt {
   $rc = &{$typemap6{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $attnm, $pdl);
   croak ("getatt:  Cannot get attribute -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
   
-  return $pdl;
+  return (exists($self->{PERL_SCALAR}) and ($pdl->nelem == 1)) ? $pdl->at(0) : $pdl;
 
 }
+
 # Get the PDL-type of a variable
 sub getvariabletype {
     my $self = shift;
