@@ -61,7 +61,10 @@ if ($Config{'osname'} =~ linux) {
   $define_bool = '-Dbool=int';
   print "Defining bool=int (linux seems to need this)\n";
 }
-            
+
+# Included to allow CPAN to detect inheritance from PDL
+# and include in PDL modules directory.            
+rename 'NetCDF.pm', 'NetCDF.pm.old' if -f 'NetCDF.pm';
 
 $package = ["netcdf.pd",NetCDF,PDL::NetCDF];
 WriteMakefile(

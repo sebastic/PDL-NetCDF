@@ -2,6 +2,7 @@ Changes
 MANIFEST
 Makefile.PL
 netcdf.pd
+NetCDF.pm  # derived from netcdf.pd -- included here so CPAN will put this module in PDL modules directory.
 test.pl
 typemap
 README

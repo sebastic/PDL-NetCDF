@@ -1,6 +1,26 @@
-use Config;
 
-pp_addpm({At => Top}, <<'EOD');
+#
+# GENERATED WITH PDL::PP! Don't modify!
+#
+package PDL::NetCDF;
+
+@EXPORT_OK  = qw( );
+%EXPORT_TAGS = (Func=>[@EXPORT_OK]);
+
+use PDL::Core;
+use PDL::Exporter;
+use DynaLoader;
+
+
+
+   
+   @ISA    = ( 'PDL::Exporter','DynaLoader' );
+   push @PDL::Core::PP, __PACKAGE__;
+   bootstrap PDL::NetCDF ;
+
+
+
+
 =head1 NAME 
 
 PDL::NetCDF - Object-oriented interface between NetCDF files and PDL objects.
@@ -450,216 +470,12 @@ Doug Hunt, dhunt\@ucar.edu.
 perl(1), PDL(1), netcdf(3).
 
 =cut
-EOD
-
-# Necessary includes for .xs file
-pp_addhdr(<<'EOH');
-#include <netcdf.h>
-#define PDLchar pdl
-#define PDLuchar pdl
-#define PDLshort pdl
-#define PDLint pdl
-#define PDLlong pdl
-#define PDLfloat pdl
-#define PDLdouble pdl
-#define uchar unsigned char
-EOH
-
-pp_bless ("PDL::NetCDF");
-
-$VERSION = '0.81';
-
-# Read in a modified netcdf.h file.  Define
-# a low-level perl interface to netCDF from these definitions.
-sub create_low_level {
-
-# This file must be modified to only include 
-# netCDF 3 function definitions.
-# Also, all C function declarations must be on one line.
-  my $defn = shift;
-  my @lines = split (/\n/, $defn);
-
-  foreach (@lines) {
-
-    next if (/^\#/);  # Skip commented out lines
-    next if (/^\s*$/); # Skip blank lines
-
-    my ($return_type, $func_name, $parms) = /^(\w+\**)\s+(\w+)\((.+)\)\;/;
-    my @parms = split (/,/, $parms);
-
-    my @vars  = ();
-    my @types = ();
-    my %output = ();
-    foreach $parm (@parms) {
-
-      my ($varname) = ($parm =~ /(\w+)$/);
-      $parm =~ s/$varname//; # parm now contains the full C type
-      $output{$varname} = 1 if (($parm =~ /\*/) && ($parm !~ /const/));
-      $parm =~ s/const //;  # get rid of 'const' in C type
-      $parm =~ s/^\s+//;
-      $parm =~ s/\s+$//;    # pare off the variable type from 'parm'
-      
-      push (@vars, $varname);
-      push (@types, $parm);
-
-    }
-
-    my $xsout = '';
-    $xsout .= "$return_type\n";
-    $xsout .= "$func_name (" . join (", ", @vars) . ")\n";
-    for (my $i=0;$i<@vars;$i++) {
-      $xsout .= "\t$types[$i]\t$vars[$i]\n";
-    }
-    
-    $xsout .= "CODE:\n";
-    $xsout .= "\tRETVAL = $func_name (";
-    for (my $i=0;$i<@vars;$i++) {
-      if ($types[$i] =~ /PDL/) {
-	($type = $types[$i]) =~ s/PDL//; # Get rid of PDL type when writine xs CODE section
-	$xsout .= "($type)$vars[$i]"."->data,";
-      } else {
-	$xsout .= "$vars[$i],";
-      }
-    }
-    chop ($xsout);  # remove last comma
-    $xsout .= ");\n";
-    $xsout .= "OUTPUT:\n";
-    $xsout .= "\tRETVAL\n";
-    foreach $var (keys %output) {
-      $xsout .= "\t$var\n";
-    }
-    $xsout .= "\n\n";
-
-    pp_addxs ('', $xsout);
-
-  }
-
-}
 
 
-#-------------------------------------------------------------------------
-# Create low level interface from edited netcdf header file.
-#-------------------------------------------------------------------------
 
-create_low_level (<<'EODEF');
-int nc_create(const char *path, int cmode, int *ncidp);
-int nc_open(const char *path, int mode, int *ncidp);
-int nc_set_fill(int ncid, int fillmode, int *old_modep);
-int nc_redef(int ncid);
-int nc_enddef(int ncid);
-int nc_sync(int ncid);
-int nc_abort(int ncid);
-int nc_close(int ncid);
-int nc_inq(int ncid, int *ndimsp, int *nvarsp, int *nattsp, int *unlimdimidp);
-int nc_inq_ndims(int ncid, int *ndimsp);
-int nc_inq_nvars(int ncid, int *nvarsp);
-int nc_inq_natts(int ncid, int *nattsp);
-int nc_inq_unlimdim(int ncid, int *unlimdimidp);
 
-# /* Begin _dim */
 
-int nc_def_dim(int ncid, const char *name, size_t len, int *idp);
-int nc_inq_dimid(int ncid, const char *name, int *idp);
-int nc_inq_dim(int ncid, int dimid, char *name, size_t *lenp);
-int nc_inq_dimname(int ncid, int dimid, char *name);
-int nc_inq_dimlen(int ncid, int dimid, size_t *lenp);
-int nc_rename_dim(int ncid, int dimid, const char *name);
 
-# /* End _dim */
-# /* Begin _att */
-
-int nc_inq_att(int ncid, int varid, const char *name, nc_type *xtypep, size_t *lenp);
-int nc_inq_attid(int ncid, int varid, const char *name, int *idp);
-int nc_inq_atttype(int ncid, int varid, const char *name, nc_type *xtypep);
-int nc_inq_attlen(int ncid, int varid, const char *name, size_t *lenp);
-int nc_inq_attname(int ncid, int varid, int attnum, char *name);
-int nc_copy_att(int ncid_in, int varid_in, const char *name, int ncid_out, int varid_out);
-int nc_rename_att(int ncid, int varid, const char *name, const char *newname);
-int nc_del_att(int ncid, int varid, const char *name);
-
-# /* End _att */
-# /* Begin {put,get}_att */
-
-int nc_put_att_text(int ncid, int varid, const char *name, size_t len, const char *op);
-int nc_get_att_text(int ncid, int varid, const char *name, char *ip);
-int nc_put_att_uchar(int ncid, int varid, const char *name, nc_type xtype, size_t len, const PDLuchar *op);
-int nc_get_att_uchar(int ncid, int varid, const char *name, PDLuchar *ip);
-int nc_put_att_schar(int ncid, int varid, const char *name, nc_type xtype, size_t len, const PDLchar *op);
-int nc_get_att_schar(int ncid, int varid, const char *name, PDLchar *ip);
-int nc_put_att_short(int ncid, int varid, const char *name, nc_type xtype, size_t len, const PDLshort *op);
-int nc_get_att_short(int ncid, int varid, const char *name, PDLshort *ip);
-int nc_put_att_int(int ncid, int varid, const char *name, nc_type xtype, size_t len, const PDLint *op);
-int nc_get_att_int(int ncid, int varid, const char *name, PDLint *ip);
-int nc_put_att_long(int ncid, int varid, const char *name, nc_type xtype, size_t len, const PDLlong *op);
-int nc_get_att_long(int ncid, int varid, const char *name, PDLlong *ip);
-int nc_put_att_float(int ncid, int varid, const char *name, nc_type xtype, size_t len, const PDLfloat *op);
-int nc_get_att_float(int ncid, int varid, const char *name, PDLfloat *ip);
-int nc_put_att_double(int ncid, int varid, const char *name, nc_type xtype, size_t len, const PDLdouble *op);
-int nc_get_att_double(int ncid, int varid, const char *name, PDLdouble *ip);
-
-# /* End {put,get}_att */
-# /* Begin _var */
-
-int nc_def_var(int ncid, const char *name,  nc_type xtype, int ndims, PDLint *dimidsp, int *varidp);
-int nc_inq_var(int ncid, int varid, char *name, nc_type *xtypep, int *ndimsp, PDLint *dimidsp, int *nattsp);
-int nc_inq_varid(int ncid, const char *name, int *varidp);
-int nc_inq_varname(int ncid, int varid, char *name);
-int nc_inq_vartype(int ncid, int varid, nc_type *xtypep);
-int nc_inq_varndims(int ncid, int varid, int *ndimsp);
-int nc_inq_vardimid(int ncid, int varid, PDLint *dimidsp);
-int nc_inq_varnatts(int ncid, int varid, int *nattsp);
-int nc_rename_var(int ncid, int varid, const char *name);
-int nc_copy_var(int ncid_in, int varid, int ncid_out);
-
-# /* End _var */
-# /* Begin {put,get}_vara */
-
-int nc_put_vara_text(int ncid, int varid, size_t *startp, size_t *countp, const char *op);
-int nc_get_vara_text(int ncid, int varid, size_t *startp, size_t *countp, char *ip);
-int nc_put_vara_uchar(int ncid, int varid, size_t *startp, size_t *countp, PDLuchar *op);
-int nc_get_vara_uchar(int ncid, int varid, size_t *startp, size_t *countp, PDLuchar *ip);
-int nc_put_vara_schar(int ncid, int varid, size_t *startp, size_t *countp, PDLchar *op);
-int nc_get_vara_schar(int ncid, int varid, size_t *startp, size_t *countp, PDLchar *ip);
-int nc_put_vara_short(int ncid, int varid, size_t *startp, size_t *countp, PDLshort *op);
-int nc_get_vara_short(int ncid, int varid, size_t *startp, size_t *countp, PDLshort *ip);
-int nc_put_vara_int(int ncid, int varid, size_t *startp, size_t *countp, PDLint *op);
-int nc_get_vara_int(int ncid, int varid, size_t *startp, size_t *countp, PDLint *ip);
-int nc_put_vara_long(int ncid, int varid, size_t *startp, size_t *countp, PDLlong *op);
-int nc_get_vara_long(int ncid, int varid, size_t *startp, size_t *countp, PDLlong *ip);
-int nc_put_vara_float(int ncid, int varid, size_t *startp, size_t *countp, PDLfloat *op);
-int nc_get_vara_float(int ncid, int varid, size_t *startp, size_t *countp, PDLfloat *ip);
-int nc_put_vara_double(int ncid, int varid, size_t *startp, size_t *countp, PDLdouble *op);
-int nc_get_vara_double(int ncid, int varid, size_t *startp, size_t *countp, PDLdouble *ip);
-
-# /* End {put,get}_vara */
-# /* Begin {put,get}_var */
-
-int nc_put_var_text(int ncid, int varid, const char *op);
-int nc_get_var_text(int ncid, int varid, char *ip);
-int nc_put_var_uchar(int ncid, int varid, const PDLuchar *op);
-int nc_get_var_uchar(int ncid, int varid, PDLuchar *ip);
-int nc_put_var_schar(int ncid, int varid, const PDLchar *op);
-int nc_get_var_schar(int ncid, int varid, PDLchar *ip);
-int nc_put_var_short(int ncid, int varid, const PDLshort *op);
-int nc_get_var_short(int ncid, int varid, PDLshort *ip);
-int nc_put_var_int(int ncid, int varid, const PDLint *op);
-int nc_get_var_int(int ncid, int varid, PDLint *ip);
-int nc_put_var_long(int ncid, int varid, const PDLlong *op);
-int nc_get_var_long(int ncid, int varid, PDLlong *ip);
-int nc_put_var_float(int ncid, int varid, const PDLfloat *op);
-int nc_get_var_float(int ncid, int varid, PDLfloat *ip);
-int nc_put_var_double(int ncid, int varid, const PDLdouble *op);
-int nc_get_var_double(int ncid, int varid, PDLdouble *ip);
-
-# /* End {put,get}_var */
-
-EODEF
-
-#-------------------------------------------------------------------------
-# Perl portion of the interface (put by PP into the .pm file)
-#-------------------------------------------------------------------------
-
-pp_addpm (<<'EOPM');
 
 # Used for creating new blank pdls with the input number of dimensions, and
 # the correct type.
@@ -1131,23 +947,13 @@ sub putslice {
   }
 
     # Convert start and count from perl lists to scalars
-EOPM
 
-#------------------------------------------------------------------------------------------------------
-# Add these statements for machines w/64 bit longs    
-if ($Config{'longsize'} == 8) { pp_addpm ('
-    my @start = map { $_,0 } @$start; # Intersperse zeros if we want 64 bit size_t
-    my @count = map { $_,0 } @$count; # Intersperse zeros if we want 64 bit size_t
-    my $st = pack ("L*", @start);
-    my $ct = pack ("L*", @count);
-');
-} else { pp_addpm ('
+
+
     my $st = pack ("L*", @$start);
     my $ct = pack ("L*", @$count);
-'); }
-#------------------------------------------------------------------------------------------------------
 
-pp_addpm (<<'EOPM');
+
   # Call the correct 'put' routine depending on PDL type
   if(ref($pdl) =~ /Char/)  {  # a PDL::Char type PDL--write a netcdf char variable
     $rc = PDL::NetCDF::nc_put_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, ${$pdl->get_dataref}."\0"); # null terminate!
@@ -1162,9 +968,8 @@ pp_addpm (<<'EOPM');
   return 0;
 
 }
-EOPM
 
-pp_addpm (<<'EOPM');
+
 # Get a variable into a pdl
 sub get {
   my $self  = shift;
@@ -1193,23 +998,13 @@ sub get {
     $pdl = &{$typemap{$self->{DATATYPES}{$varnm}}}(reverse @cnt);	
 
     # Convert start and count from perl lists to scalars
-EOPM
 
-#------------------------------------------------------------------------------------------------------
-# Add these statements for machines w/64 bit longs    
-if ($Config{'longsize'} == 8) { pp_addpm ('
-    my @start = map { $_,0 } @$start; # Intersperse zeros if we want 64 bit size_t
-    my @count = map { $_,0 } @$count; # Intersperse zeros if we want 64 bit size_t
-    my $st = pack ("L*", @start);
-    my $ct = pack ("L*", @count);
-');
-} else { pp_addpm ('
+
+
     my $st = pack ("L*", @$start);
     my $ct = pack ("L*", @$count);
-'); }
-#------------------------------------------------------------------------------------------------------
 
-pp_addpm (<<'EOPM');
+
 
     # Get the data
     if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
@@ -1257,9 +1052,8 @@ pp_addpm (<<'EOPM');
   
   return $pdl;
 }
-EOPM
 
-pp_addpm (<<'EOPM');
+
 # Get the size of a dimension
 sub dimsize {
   my $self  = shift;
@@ -1473,24 +1267,14 @@ sub puttext {
   }
 
 
-EOPM
 
-#------------------------------------------------------------------------------------------------------
-# Add these statements for machines w/64 bit longs    
-if ($Config{'longsize'} == 8) { pp_addpm ('
-    my @start = map { $_,0 } ((0) x $ndims); # Intersperse zeros if we want 64 bit size_t
-    my @count = map { $_,0 } @$dimlens; # Intersperse zeros if we want 64 bit size_t
-    my $st = pack ("L*", @start);
-    my $ct = pack ("L*", @count);
-');
-} else { pp_addpm ('
+
+
     my $st = pack ("L*", ((0) x $ndims));
     my $ct = pack ("L*", @$dimlens);
 
-'); }
-#------------------------------------------------------------------------------------------------------
 
-pp_addpm (<<'EOPM');
+
 
   # Call the 'put' routine 
   $rc = PDL::NetCDF::nc_put_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $str."\0"); # null terminate!
@@ -1533,24 +1317,14 @@ sub gettext {
   barf ("gettext:  Data not of string type") if ($datatype != NC_CHAR());
 
 
-EOPM
 
-#------------------------------------------------------------------------------------------------------
-# Add these statements for machines w/64 bit longs    
-if ($Config{'longsize'} == 8) { pp_addpm ('
-    my @start = map { $_,0 } ((0) x $ndims); # Intersperse zeros if we want 64 bit size_t
-    my @count = map { $_,0 } @dims; # Intersperse zeros if we want 64 bit size_t
-    my $st = pack ("L*", @start);
-    my $ct = pack ("L*", @count);
-');
-} else { pp_addpm ('
+
+
     my $st = pack ("L*", ((0) x $ndims));
     my $ct = pack ("L*", @dims);
 
-'); }
-#------------------------------------------------------------------------------------------------------
 
-pp_addpm (<<'EOPM');
+
 
   $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, my $str=('x' x $total_size)."\0"); # null terminate!
   barf ("gettext:  Cannot get text variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
@@ -1560,13 +1334,8 @@ pp_addpm (<<'EOPM');
 }
 
 
-EOPM
 
-#-------------------------------------------------------------------------
-# netCDF constants
-#-------------------------------------------------------------------------
 
-pp_addpm (<<'EOPM');
 
 # These defines are taken from netcdf.h  I deemed this cleaner than using
 # h2xs and the autoload stuff, which mixes alkwardly with PP.
@@ -1635,29 +1404,14 @@ sub NC_SHORT { return 3; }	 # signed 2 byte integer
 sub NC_INT { return 4; }	 # signed 4 byte integer 
 sub NC_FLOAT { return 5; }       # single precision floating point number 
 sub NC_DOUBLE { return 6; }	 # double precision floating point number 
-EOPM
 
-#-------------------------------------------------------------------------
-# Add the error number -> error string translation function interface
-# to the .xs file.  This function behaves differently than the others
-# from netcdf.h, so it is not created in 'create_low_level'
-#-------------------------------------------------------------------------
-pp_addxs (<<'EOXS');
 
-SV *
-nc_strerror (errid)
-  	int 	errid
-CODE:
-	{
-		const char * myerrstr;
-		char errstr[NC_MAX_NAME]; /* use of this second string gets rid of a warning msg */
-		myerrstr = nc_strerror (errid);
-		strcpy (errstr, myerrstr);
-		RETVAL = newSVpv (errstr, strlen(myerrstr));
-	}
-OUTPUT:
-	RETVAL  
+;
 
-EOXS
 
-pp_done();
+
+# Exit with OK status
+
+1;
+
+		   

@@ -24,3 +24,8 @@ Revision history for Perl extension PDL::NetCDFobj
         - Added read support for zero dimensional variables (variables with no dimension, just a scalar)
         - Added the ability to reuse an old netCDF object for the 'new' call for similar files.
           This speeds up the reading of many similar netCDF files considerably.
+
+0.81  4/11/2002
+        - Backed out a change which seems to break reading multi-dimension strings into PDL::Chars.
+	- Added NetCDF.pm to the MANIFEST to CPAN will recognize that this module should go in the
+          PDL directory
