@@ -24,12 +24,8 @@ The following are required for installation:
 -- PDL v2.0 alpha (tested with pdl v1.99989), or PDL v2.X, when it
    comes out.
 
-If you want to use the production version of pdl (pdl 1.11), please
-use PDL::NetCDF version 0.34, also available on CPAN.  PDL::NetCDF is
-somewhat buggy but perfectly useable.  I will not update it in the
-future, preferring instead to work on PDL::NetCDFobj.  I changed the
-name because PDL::NetCDFobj uses an interface which is incompatible
-with that of PDL::NetCDF.
+If you want to use the old version of pdl (pdl 1.11), please
+use PDL::NetCDF version 0.34, also available on CPAN.  
 
 -- perl 5.004 (or later)
 -- NetCDF version 3 or later
@@ -53,6 +49,12 @@ my $pdl = pdl [[1, 2, 3], [4, 5, 6]];
 $ncobj->put ('var1', ['dim1', 'dim2'], $pdl); 
 
 my $pdlout = $ncobj->get ('var1'); # $pdlout = [[1, 2, 3], [4, 5, 6]]
+
+# Store textual NetCDF arrays using perl strings:  (This is a bit primitive, but works)
+my $str = "Station1  Station2  Station3  ";
+$obj->puttext('textvar', ['n_station', 'n_string'], [3,10], $str);
+my $outstr = $obj->gettext('textvar');
+# $outstr = "Station1  Station2  Station3  "
 
 my $dim1size = $ncobj->dimsize('dim1'); # $dim1size = 2
 

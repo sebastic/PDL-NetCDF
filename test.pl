@@ -6,7 +6,7 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..15\n"; }
+BEGIN { $| = 1; print "1..16\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use PDL;
 use PDL::NetCDF;
@@ -29,21 +29,27 @@ $in1 = pdl [[1,2,3], [4,5,6]];
 $obj->put ('var1', ['dim1', 'dim2'], $in1);
 $out1 = $obj->get ('var1');
 
-$ok = ($in1 == $out1)->sum == $in1->nelem;
+my $str = "Station1  Station2  Station3  ";
+$obj->puttext('textvar', ['n_station', 'n_string'], [3,10], $str);
+my $outstr = $obj->gettext('textvar');
+$ok = ($str eq $outstr);
 print( ($ok ? "ok ": "not ok "), "2\n" ); 
+
+$ok = ($in1 == $out1)->sum == $in1->nelem;
+print( ($ok ? "ok ": "not ok "), "3\n" ); 
 
 $dims  = pdl $in1->dims;
 $dims1 = pdl $out1->dims;
 $ok = ($dims == $dims1)->sum == $dims->nelem;
-print( ($ok ? "ok ": "not ok "), "3\n" ); 
+print( ($ok ? "ok ": "not ok "), "4\n" ); 
 
 $in2 = pdl [[1,2,3,4], [5,6,7,8]]; # dim1 is already 3, not 4
 eval { $obj->put ('var2', ['dim1', 'dim2'], $in2); }; # Dimension error
 $ok = ($@ =~ /Attempt to redefine length of dimension/);
-print( ($ok ? "ok ": "not ok "), "4\n" ); 
+print( ($ok ? "ok ": "not ok "), "5\n" ); 
 
 $ok = !$obj->close;
-print( ($ok ? "ok ": "not ok "), "5\n" ); 
+print( ($ok ? "ok ": "not ok "), "6\n" ); 
 
 # Try again with existing file
 $obj1 = PDL::NetCDF->new ('>foo.nc');
@@ -52,39 +58,39 @@ $obj1->put ('var1', ['dim1', 'dim2'], $pdl);
 $pdl1 = $obj1->get ('var1');
 
 $ok = ($pdl1 == $pdl)->sum == $pdl->nelem;
-print( ($ok ? "ok ": "not ok "), "6\n" ); 
+print( ($ok ? "ok ": "not ok "), "7\n" ); 
 
 $dims  = pdl $pdl->dims;
 $dims1 = pdl $pdl1->dims;
 $ok = ($dims == $dims1)->sum == $dims->nelem;
-print( ($ok ? "ok ": "not ok "), "7\n" ); 
+print( ($ok ? "ok ": "not ok "), "8\n" ); 
 
 $attin = pdl [1,2,3];
 $rc = $obj1->putatt ($attin, 'double_attribute', 'var1');
-print( ($rc ? "not ok ": "ok "), "8\n" ); 
+print( ($rc ? "not ok ": "ok "), "9\n" ); 
 
 $attout = $obj1->getatt ('double_attribute', 'var1');
 $ok = ($attin == $attout)->sum == $attin->nelem;
-print( ($ok ? "ok ": "not ok "), "9\n" ); 
+print( ($ok ? "ok ": "not ok "), "10\n" ); 
 
 $rc = $obj1->putatt ('Text Attribute', 'text_attribute');
-print( ($rc ? "not ok ": "ok "), "10\n" ); 
+print( ($rc ? "not ok ": "ok "), "11\n" ); 
 
 $attout = $obj1->getatt ('text_attribute');
-print( ($attout eq 'Text Attribute' ? "ok ": "not ok "), "11\n" ); 
+print( ($attout eq 'Text Attribute' ? "ok ": "not ok "), "12\n" ); 
 
 # Get slices
 $out2 = $obj->get ('var1', [1,1], [1,1]);
 $ok = ($out2 == pdl[5])->sum == $out2->nelem;
-print( ($ok ? "ok ": "not ok "), "12\n" ); 
+print( ($ok ? "ok ": "not ok "), "13\n" ); 
 
 $out2 = $obj->get ('var1', [0,1], [2,1]);
 $ok = ($out2 == pdl[2,5])->sum == $out2->nelem;
-print( ($ok ? "ok ": "not ok "), "13\n" ); 
+print( ($ok ? "ok ": "not ok "), "14\n" ); 
 
 $out2 = $obj->get ('var1', [0,1], [1,1]);
 $ok = ($out2 == pdl[2])->sum == $out2->nelem;
-print( ($ok ? "ok ": "not ok "), "14\n" ); 
+print( ($ok ? "ok ": "not ok "), "15\n" ); 
 
 # Test with a bogus file
 open (IN, ">bogus.nc");
@@ -92,7 +98,7 @@ print IN "I'm not a netCDF file\n";
 close IN;
 eval { $obj2 = PDL::NetCDF->new ('bogus.nc'); };
 $ok = ($@ =~ /Not a netCDF file/);
-print( ($ok ? "ok ": "not ok "), "15\n" ); 
+print( ($ok ? "ok ": "not ok "), "16\n" ); 
 
 END {
   print "Removing test files, foo.nc, bogus.nc\n";

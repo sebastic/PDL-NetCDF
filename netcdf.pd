@@ -23,6 +23,12 @@ $ncobj->put ('var1', ['dim1', 'dim2'], $pdl);
 # $pdlout = [[1, 2, 3], [4, 5, 6]]
 my $pdlout = $ncobj->get ('var1');
 
+# Store textual NetCDF arrays using perl strings:  (This is a bit primitive, but works)
+my $str = "Station1  Station2  Station3  ";
+$obj->puttext('textvar', ['n_station', 'n_string'], [3,10], $str);
+my $outstr = $obj->gettext('textvar');
+# $outstr = "Station1  Station2  Station3  "
+
 # $dim1size = 2
 my $dim1size = $ncobj->dimsize('dim1');
 
@@ -196,6 +202,41 @@ my $attr2 = $ncobj->getatt ('attr_name');
 # Get an attribute associated with the varibale 'var1'
 my $attr1 = $ncobj->getatt ('double_attribute', 'var1');
 
+=head2 puttext
+
+=for ref
+
+Put a perl text string into a multi-dimensional NetCDF array.
+
+=for usage
+
+Arguments:
+1) The name of the variable to be created (a text string).
+2) A reference to a perl list of dimension names to use in creating this NetCDF array.
+3) A reference to a perl list of dimension lengths.
+4) A perl string to put into the netCDF array.  If the NetCDF array is 3 x 10, then the string must
+   have 30 charactars.  
+
+=for example
+
+my $str = "Station1  Station2  Station3  ";
+$obj->puttext('textvar', ['n_station', 'n_string'], [3,10], $str);
+
+=head2 gettext
+
+=for ref
+
+Get a multi-dimensional NetCDF array into a perl string.
+
+=for usage
+
+Arguments:
+1) The name of the NetCDF variable.
+
+=for example
+
+my $outstr = $obj->gettext('textvar');
+
 =head2 dimsize
 
 =for ref
@@ -262,7 +303,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.51';
+$VERSION = '0.60';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
@@ -409,8 +450,8 @@ int nc_copy_var(int ncid_in, int varid, int ncid_out);
 # /* End _var */
 # /* Begin {put,get}_vara */
 
-int nc_put_vara_text(int ncid, int varid, size_t *startp, size_t *countp, PDLchar *op);
-int nc_get_vara_text(int ncid, int varid, size_t *startp, size_t *countp, PDLchar *ip);
+int nc_put_vara_text(int ncid, int varid, size_t *startp, size_t *countp, const char *op);
+int nc_get_vara_text(int ncid, int varid, size_t *startp, size_t *countp, char *ip);
 int nc_put_vara_uchar(int ncid, int varid, size_t *startp, size_t *countp, PDLuchar *op);
 int nc_get_vara_uchar(int ncid, int varid, size_t *startp, size_t *countp, PDLuchar *ip);
 int nc_put_vara_schar(int ncid, int varid, size_t *startp, size_t *countp, PDLchar *op);
@@ -910,6 +951,162 @@ sub getatt {
   return $pdl;
 
 }
+
+
+# Put a perl string into a multi-dimensional netCDF object
+#
+## ex:  $o->puttext ('station_names', ['n_stations', 'n_string'], [3,10], 'Station1  Station2  Station3');
+# 
+sub puttext {
+  my $self    = shift;
+  my $varnm   = shift;
+  my $dims    = shift;
+  my $dimlens = shift;  # Length of dimensions
+  my $str     = shift;  # Perl string with data
+  
+  my $ndims = scalar(@$dimlens);
+
+  barf "Cannot write read-only netCDF file $self->{FILENM}" if ($self->{WR} eq 'r');
+
+  # Define dimensions if necessary
+
+  my $dimids = zeroes (PDL::long, $ndims);
+  for (my $i=0;$i<@$dims;$i++) {
+    if (!defined($self->{DIMIDS}{$$dims[$i]})) {
+
+      unless ($self->{DEFINE}) {
+	my $rc = PDL::NetCDF::nc_redef ($self->{NCID});
+	barf ("Cannot put file into define mode") if $rc;
+	$self->{DEFINE} = 1;
+      }
+
+      my $rc = PDL::NetCDF::nc_def_dim ($self->{NCID}, $$dims[$i], $$dimlens[$i], 
+				$self->{DIMIDS}{$$dims[$i]}=-999);
+      barf ("put:  Cannot define dimension -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+
+      $self->{DIMLENS}{$$dims[$i]} = $$dimlens[$i];
+
+    }
+    set ($dimids, $i, $self->{DIMIDS}{$$dims[$i]});
+
+    barf ("put:  Attempt to redefine length of dimension $$dims[$i]") 
+      if ($self->{DIMLENS}{$$dims[$i]} != $$dimlens[$i]);
+    
+  }
+
+  # Define variable if necessary
+  if (!defined($self->{VARIDS}{$varnm})) {
+  
+    unless ($self->{DEFINE}) {
+      my $rc = PDL::NetCDF::nc_redef ($self->{NCID});
+      barf ("put:  Cannot put file into define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+      $self->{DEFINE} = 1;
+    }
+
+    my $datatype =  NC_CHAR();
+    my $rc = PDL::NetCDF::nc_def_var ($self->{NCID}, $varnm, $datatype, 
+			   $ndims, $dimids, $self->{VARIDS}{$varnm}=-999);
+    barf ("put:  Cannot define variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+
+    $self->{DATATYPES}{$varnm} = $datatype;
+
+  }
+
+  # Get out of define mode
+  if ($self->{DEFINE}) {
+    my $rc = PDL::NetCDF::nc_enddef ($self->{NCID});
+    barf ("put:  Cannot end define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+    $self->{DEFINE} = 0;
+  }
+
+
+EOPM
+
+#------------------------------------------------------------------------------------------------------
+# Add these statements for machines w/64 bit longs    
+if ($Config{'longsize'} == 8) { pp_addpm ('
+    my @start = map { $_,0 } ((0) x $ndims); # Intersperse zeros if we want 64 bit size_t
+    my @count = map { $_,0 } @$dimlens; # Intersperse zeros if we want 64 bit size_t
+    my $st = pack ("L*", @start);
+    my $ct = pack ("L*", @count);
+');
+} else { pp_addpm ('
+    my $st = pack ("L*", ((0) x $ndims));
+    my $ct = pack ("L*", @$dimlens);
+
+'); }
+#------------------------------------------------------------------------------------------------------
+
+pp_addpm (<<'EOPM');
+
+  # Call the 'put' routine 
+  $rc = PDL::NetCDF::nc_put_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $str);
+  barf ("put:  Cannot write file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+  
+  $rc = PDL::NetCDF::nc_sync($self->{NCID});
+  barf ("put:  Cannot sync file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+
+  return 0;
+}
+
+
+
+# Get an entire text variable into one big string.  Multiple dimensions are concatenated.
+sub gettext {
+  my $self  = shift;
+  my $varnm = shift;
+  
+  # Determine the type of this variable
+  my ($ndims, $natts, $i, $rc);
+  $rc |= PDL::NetCDF::nc_inq_varndims ($self->{NCID}, $self->{VARIDS}{$varnm}, $ndims=-999);
+  my $dimids = zeroes (PDL::long, $ndims);
+  $rc |= PDL::NetCDF::nc_inq_vardimid ($self->{NCID}, $self->{VARIDS}{$varnm}, $dimids);
+  barf ("get:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+  
+  # Find out size of each dimension of this NetCDF matrix
+  my ($name, $size, $total_size, @dims);
+  $total_size = 1;
+  @dims = ();
+  for ($i=0;$i<$ndims;$i++) {
+      my $rc = PDL::NetCDF::nc_inq_dim ($self->{NCID}, $dimids->at($i), $name='x' x NC_MAX_NAME(), $size=-999);
+      barf ("get:  Cannot get info on this dimension -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+      $total_size *= $size;
+      push (@dims, $size);
+  }
+
+  my $datatype = $self->{DATATYPES}{$varnm};
+
+  # Get text attribute into perl string
+  barf ("gettext:  Data not of string type") if ($datatype != NC_CHAR());
+
+
+EOPM
+
+#------------------------------------------------------------------------------------------------------
+# Add these statements for machines w/64 bit longs    
+if ($Config{'longsize'} == 8) { pp_addpm ('
+    my @start = map { $_,0 } ((0) x $ndims); # Intersperse zeros if we want 64 bit size_t
+    my @count = map { $_,0 } @dims; # Intersperse zeros if we want 64 bit size_t
+    my $st = pack ("L*", @start);
+    my $ct = pack ("L*", @count);
+');
+} else { pp_addpm ('
+    my $st = pack ("L*", ((0) x $ndims));
+    my $ct = pack ("L*", @dims);
+
+'); }
+#------------------------------------------------------------------------------------------------------
+
+pp_addpm (<<'EOPM');
+
+  $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, my $str='x' x $total_size);
+  barf ("gettext:  Cannot get text variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
+
+  return $str;
+
+}
+
+
 EOPM
 
 #-------------------------------------------------------------------------
