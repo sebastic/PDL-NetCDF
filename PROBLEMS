@@ -19,3 +19,19 @@ The CCFLAGS line should be edited to look like this:
 'CCFLAGS'      => '-Dbool=int -g3',  
 
 For some reason, the 'bool' type is not set correctly in the default red hat 5.2 perl installation.
+
+New for 0.63:
+
+-- The above choice has now been automated for gcc/linux.  If you get errors like that above, edit 
+Makefile.PL to define or not define 'bool' as appropriate.
+
+-- There is now an attempt to automatically determine where the NetCDF library and include 
+files are installed.  If this fails (perl Makefile.PL will die with a message about not finding
+the lib or include file), please add the correct path to libnetcdf.so or netcdf.h on your system
+to Makefile.PL (or install netCDF).
+
+
+
+
+
+

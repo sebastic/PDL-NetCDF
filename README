@@ -1,4 +1,4 @@
-PDL::NetCDF, version 0.50
+PDL::NetCDF, version 0.63
 
 Allows reading and writing of NetCDF files into and out of PDL objects using
 a simple object-oriented interface.  NetCDF is a flexible, binary, portable
@@ -21,8 +21,7 @@ The old PDL::NetCDF is no longer supported.
 
 The following are required for installation:
 
--- PDL v2.0 alpha (tested with pdl v1.99989), or PDL v2.X, when it
-   comes out.
+-- PDL v2.0 or above 
 
 If you want to use the old version of pdl (pdl 1.11), please
 use PDL::NetCDF version 0.34, also available on CPAN.  
@@ -80,18 +79,7 @@ $ncobj->close;
 
 INSTALLATION:
 
-Once the above are installed, edit the Makefile.PL to add the
-lib and include paths for your machine's NetCDF installation:
-
-On my Sun Solaris machine, these are the correct values:
-
-$netcdf_lib_path     = '/opt/local/lib';
-$netcdf_include_path = '/opt/local/include';
-
-On many other UNIX flavors, the correct paths may be
-/usr/local/*
-
-Once this is done, do the normal perl extension thing:
+Installation should be the normal:
 
 perl Makefile.PL
 make
@@ -99,6 +87,8 @@ make test
 
 (as root)
 make install
+
+If you have problems, see the PROBLEMS file.
 
 Best of luck!
 
