@@ -1,0 +1,21 @@
+KNOWN PROBLEMS:
+
+On Red Hat Linux 5.2, using perl 5.00404, I get the following error on the 'make':
+
+In file included from /usr/lib/perl5/i386-linux/5.00404/CORE/perl.h:1012,
+                 from NetCDF.xs:6:
+/usr/lib/perl5/i386-linux/5.00404/CORE/cop.h:205: parse error before `bool'
+/usr/lib/perl5/i386-linux/5.00404/CORE/cop.h:205: warning: no semicolon at end of struct or union
+/usr/lib/perl5/i386-linux/5.00404/CORE/cop.h:206: warning: data definition has no type or storage class
+/usr/lib/perl5/i386-linux/5.00404/CORE/cop.h:215: parse error before `}'
+/usr/lib/perl5/i386-linux/5.00404/CORE/cop.h:256: field `cx_subst' has incomplete type
+
+... Lots more errors ...
+
+I have to add the following kludge to Makefile.PL to allow it to compile:
+
+The CCFLAGS line should be edited to look like this:
+
+'CCFLAGS'      => '-Dbool=int -g3',  
+
+For some reason, the 'bool' type is not set correctly in the default red hat 5.2 perl installation.

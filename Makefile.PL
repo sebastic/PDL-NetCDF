@@ -3,12 +3,13 @@
 use PDL::Core::Dev;            # Pick up development utilities
 use ExtUtils::MakeMaker;
 
-$netcdf_lib_path     = '/opt/local/lib';
-$netcdf_include_path = '/opt/local/include';
+$netcdf_lib_path     = '/usr/local/lib';
+$netcdf_include_path = '/usr/local/include';
 
 $package = ["netcdf.pd",NetCDF,PDL::NetCDF];
 WriteMakefile(
 	      'NAME'  	     => 'PDL::NetCDF',
+#	      'CCFLAGS'      => '-Dbool=int -g3',  # Necessary on my Linux box, see PROBLEMS file.
 	      'CCFLAGS'      => '-g3',
 	      'VERSION_FROM' => 'netcdf.pd',
 	      'TYPEMAPS'     => [&PDL_TYPEMAP()], 
