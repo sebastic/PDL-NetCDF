@@ -10,48 +10,48 @@ binary gridded files via PDL objects.
 
 =head1 SYNOPSIS
 
-use PDL;
-use PDL::NetCDF;
+  use PDL;
+  use PDL::NetCDF;
 
-my $ncobj = PDL::NetCDF->new ("test.nc");  # New file
-my $pdl = pdl [[1, 2, 3], [4, 5, 6]];
+  my $ncobj = PDL::NetCDF->new ("test.nc");  # New file
+  my $pdl = pdl [[1, 2, 3], [4, 5, 6]];
 
-# Specify variable name to put PDL in, plus names of the dimensions.  Dimension         
-# lengths are taken from the PDL, in this case, dim1 = 2 and dim2 = 3.      
-$ncobj->put ('var1', ['dim1', 'dim2'], $pdl);                                               
+  # Specify variable name to put PDL in, plus names of the dimensions.  Dimension         
+  # lengths are taken from the PDL, in this case, dim1 = 2 and dim2 = 3.      
+  $ncobj->put ('var1', ['dim1', 'dim2'], $pdl);                                               
 
-# $pdlout = [[1, 2, 3], [4, 5, 6]]
-my $pdlout = $ncobj->get ('var1');
+  # $pdlout = [[1, 2, 3], [4, 5, 6]]
+  my $pdlout = $ncobj->get ('var1');
 
-# Store textual NetCDF arrays using perl strings:  (This is a bit primitive, but works)
-my $str = "Station1  Station2  Station3  ";
-$obj->puttext('textvar', ['n_station', 'n_string'], [3,10], $str);
-my $outstr = $obj->gettext('textvar');
-# $outstr = "Station1  Station2  Station3  "
+  # Store textual NetCDF arrays using perl strings:  (This is a bit primitive, but works)
+  my $str = "Station1  Station2  Station3  ";
+  $obj->puttext('textvar', ['n_station', 'n_string'], [3,10], $str);
+  my $outstr = $obj->gettext('textvar');
+  # $outstr = "Station1  Station2  Station3  "
 
-# $dim1size = 2
-my $dim1size = $ncobj->dimsize('dim1');
+  # $dim1size = 2
+  my $dim1size = $ncobj->dimsize('dim1');
 
-# A slice of the netCDF variable.
-# [0,0] is the starting point, [1,2] is the count.
-# $slice = [1,2]
-my $slice  = $ncobj->get ('var1', pdl([0,0]), pdl([1,2]));
+  # A slice of the netCDF variable.
+  # [0,0] is the starting point, [1,2] is the count.
+  # $slice = [1,2]
+  my $slice  = $ncobj->get ('var1', pdl([0,0]), pdl([1,2]));
 
-# Attach a double attribute of size 3 to var1
-$ncobj->putatt (double([1,2,3]), 'double_attribute', 'var1');
+  # Attach a double attribute of size 3 to var1
+  $ncobj->putatt (double([1,2,3]), 'double_attribute', 'var1');
 
-# $attr1 = [1,2,3]
-my $attr1 = $ncobj->getatt ('double_attribute', 'var1');
+  # $attr1 = [1,2,3]
+  my $attr1 = $ncobj->getatt ('double_attribute', 'var1');
 
-# Write a textual, global attribute.  'attr_name' is the attribute name.
-$ncobj->putatt ('The text of the global attribute', 'attr_name');          
+  # Write a textual, global attribute.  'attr_name' is the attribute name.
+  $ncobj->putatt ('The text of the global attribute', 'attr_name');          
 
-# $attr2 = 'The text of the global attribute'
-my $attr2 = $ncobj->getatt ('attr_name');
+  # $attr2 = 'The text of the global attribute'
+  my $attr2 = $ncobj->getatt ('attr_name');
 
-# Close the netCDF file.  The file is also automatically closed in a DESTROY block
-# when it passes out of scope.  This just makes is explicit.
-$ncobj->close;
+  # Close the netCDF file.  The file is also automatically closed in a DESTROY block
+  # when it passes out of scope.  This just makes is explicit.
+  $ncobj->close;
 
 For (much) more information on NetCDF, see 
 
@@ -95,7 +95,7 @@ prepend the name with the '>' character:  ">name.nc"
 Returns:  The netCDF object.  Barfs if there is an error.
 
 =for example
-$ncobj = PDL::NetCDF->new ("file.nc");
+  $ncobj = PDL::NetCDF->new ("file.nc");
 
 =head2 put        
 
@@ -106,21 +106,24 @@ Put a PDL matrix to a netCDF variable.
 =for usage
 
 Arguments:  
+
 1) The name of the variable to create
+
 2) A reference to a list of dimension names for this variable
+
 3) The PDL to put.  It must have the same number of dimensions
-   as specified in the dimension name list.
+as specified in the dimension name list.
 
 Returns:
 None.
 
 =for example
 
-my $pdl = pdl [[1, 2, 3], [4, 5, 6]];
+  my $pdl = pdl [[1, 2, 3], [4, 5, 6]];
 
-# Specify variable name to put PDL in, plus names of the dimensions.  Dimension         
-# lengths are taken from the PDL, in this case, dim1 = 2 and dim2 = 3.      
-$ncobj->put ('var1', ['dim1', 'dim2'], $pdl);                                               
+  # Specify variable name to put PDL in, plus names of the dimensions.  Dimension         
+  # lengths are taken from the PDL, in this case, dim1 = 2 and dim2 = 3.      
+  $ncobj->put ('var1', ['dim1', 'dim2'], $pdl);                                               
 
 =head2 get
 
@@ -131,12 +134,15 @@ Get a PDL matrix from a netCDF variable.
 =for usage
 
 Arguments:  
+
 1) The name of the netCDF variable to fetch.  If this is the only
 argument, then the entire variable will be returned.
 
 To fetch a slice of the netCDF variable, optional 2nd and 3rd argments
 must be specified:
+
 2) A pdl which specifies the N dimensional starting point of the slice.
+
 3) A pdl which specifies the N dimensional count of the slice.
 
 Returns:
@@ -144,12 +150,12 @@ The PDL representing the netCDF variable.  Barfs on error.
 
 =for example
 
-# A slice of the netCDF variable.
-# [0,0] is the starting point, [1,2] is the count.
-my $slice  = $ncobj->get ('var1', pdl([0,0]), pdl([1,2]));
+  # A slice of the netCDF variable.
+  # [0,0] is the starting point, [1,2] is the count.
+  my $slice  = $ncobj->get ('var1', pdl([0,0]), pdl([1,2]));
 
-# If var1 contains this:  [[1, 2, 3], [4, 5, 6]]
-# Then $slice contains: [1,2] (Size '1' dimensions are eliminated).
+  # If var1 contains this:  [[1, 2, 3], [4, 5, 6]]
+  # Then $slice contains: [1,2] (Size '1' dimensions are eliminated).
 
 =head2 putatt
 
@@ -163,8 +169,10 @@ Arguments:
 
 1) The attribute.  Either:  A one dimensional PDL (perhaps contining only one number) or
 a string.
+
 2) The name to give the attribute in the netCDF file.  Many attribute names
 have pre-defined meanings.  See the netCDF documentation for more details.
+
 3) Optionally, you may specify the name of the pre-defined netCDF variable to associate
 this attribute with.  If this is left off, the attribute is a global one, pertaining to
 the entire netCDF file.
@@ -174,11 +182,11 @@ Nothing.  Barfs on error.
 
 =for example
 
-# Attach a double attribute of size 3 to var1
-$ncobj->putatt (double([1,2,3]), 'double_attribute', 'var1');
+  # Attach a double attribute of size 3 to var1
+  $ncobj->putatt (double([1,2,3]), 'double_attribute', 'var1');
 
-# Write a textual, global attribute.  'attr_name' is the attribute name.
-$ncobj->putatt ('The text of the global attribute', 'attr_name');          
+  # Write a textual, global attribute.  'attr_name' is the attribute name.
+  $ncobj->putatt ('The text of the global attribute', 'attr_name');          
 
 =head2 getatt
 
@@ -189,18 +197,20 @@ Get an attribute from a netCDF object.
 =for usage
 
 Arguments:
+
 1) The name of the attribute (a text string).
+
 2) The name of the variable this attribute is attached to.  If this
 argument is not specified, this function returns a global attribute of
 the input name.
 
 =for example
 
-# Get a global attribute
-my $attr2 = $ncobj->getatt ('attr_name');
+  # Get a global attribute
+  my $attr2 = $ncobj->getatt ('attr_name');
 
-# Get an attribute associated with the varibale 'var1'
-my $attr1 = $ncobj->getatt ('double_attribute', 'var1');
+  # Get an attribute associated with the varibale 'var1'
+  my $attr1 = $ncobj->getatt ('double_attribute', 'var1');
 
 =head2 puttext
 
@@ -211,16 +221,20 @@ Put a perl text string into a multi-dimensional NetCDF array.
 =for usage
 
 Arguments:
+
 1) The name of the variable to be created (a text string).
+
 2) A reference to a perl list of dimension names to use in creating this NetCDF array.
+
 3) A reference to a perl list of dimension lengths.
+
 4) A perl string to put into the netCDF array.  If the NetCDF array is 3 x 10, then the string must
    have 30 charactars.  
 
 =for example
 
-my $str = "Station1  Station2  Station3  ";
-$obj->puttext('textvar', ['n_station', 'n_string'], [3,10], $str);
+  my $str = "Station1  Station2  Station3  ";
+  $obj->puttext('textvar', ['n_station', 'n_string'], [3,10], $str);
 
 =head2 gettext
 
@@ -231,11 +245,12 @@ Get a multi-dimensional NetCDF array into a perl string.
 =for usage
 
 Arguments:
+
 1) The name of the NetCDF variable.
 
 =for example
 
-my $outstr = $obj->gettext('textvar');
+  my $outstr = $obj->gettext('textvar');
 
 =head2 dimsize
 
@@ -246,6 +261,7 @@ Get the size of a dimension from a netCDF object.
 =for usage
 
 Arguments:
+
 1) The name of the dimension.
 
 Returns:
@@ -253,7 +269,7 @@ The size of the dimension.
 
 =for example
 
-my $dim1size = $ncobj->dimsize('dim1');
+  my $dim1size = $ncobj->dimsize('dim1');
 
 =head2 close
 
@@ -275,7 +291,7 @@ close whenever the netCDF object passes out of scope.
 
 =for example
 
-$ncobj->close();
+  $ncobj->close();
 
 =head1 AUTHOR
 
@@ -303,7 +319,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.60';
+$VERSION = '0.61';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.

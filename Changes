@@ -14,11 +14,3 @@ Revision history for Perl extension PDL::NetCDFobj
 
 	  Changed name to PDL::NetCDF
 
-0.50 12/12/98
-
-       - Changed name to 'PDL::NetCDF'.
-
-0.60 01/05/98
-
-       - Added support for textual NetCDF arrays.  (puttext and gettext).
-
