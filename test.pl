@@ -9,7 +9,6 @@
 BEGIN { $| = 1; print "1..64\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use PDL;
-use PDL::OO;
 use PDL::NetCDF qw(/^nc/ /^NC_/);
 $loaded = 1;
 print "ok 1\n";

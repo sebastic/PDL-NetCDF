@@ -1,7 +1,6 @@
 package PDL::NetCDF;
 
-use PDL;
-use PDL::Core;
+use PDL::Lite;
 use Carp;
 use strict;
 use vars qw($VERSION @ISA @EXPORT_OK $AUTOLOAD $constname);
@@ -120,7 +119,7 @@ require DynaLoader;
 	     ncopts
 	     ncerr
 	     );
-$VERSION = '0.34';
+$VERSION = '0.40';
 
 sub AUTOLOAD {
     if (@_ > 1) {
@@ -147,25 +146,27 @@ sub AUTOLOAD {
 
 bootstrap PDL::NetCDF $VERSION;
 
-
-# Map a NetCDF type to a routine which will return a PDL of that type
+# Used for creating new blank pdls with the input number of dimensions, and
+# the correct type.
 my %typemap = (
-	    NC_BYTE()   => $PDL::Core::PDL_B,
-	    NC_CHAR()   => $PDL::Core::PDL_B,
-	    NC_SHORT()  => $PDL::Core::PDL_S,
-	    NC_LONG()   => $PDL::Core::PDL_L,
-	    NC_FLOAT()  => $PDL::Core::PDL_F,
-	    NC_DOUBLE() => $PDL::Core::PDL_D,
-	    );
+	       NC_BYTE()   => sub { PDL->zeroes (PDL::byte,   @_); },
+	       NC_CHAR()   => sub { PDL->zeroes (PDL::byte,   @_); },
+	       NC_SHORT()  => sub { PDL->zeroes (PDL::short,  @_); },
+	       NC_LONG()   => sub { PDL->zeroes (PDL::long,   @_); },
+	       NC_FLOAT()  => sub { PDL->zeroes (PDL::float,  @_); },
+	       NC_DOUBLE() => sub { PDL->zeroes (PDL::double, @_); },
+	       );
 
+# Used for creating new pdls with the input data, and
+# the correct type.
 my %typemap1 = (
-	     NC_BYTE()   => sub { byte   (@_); },
-	     NC_CHAR()   => sub { byte   (@_); },
-	     NC_SHORT()  => sub { short  (@_); },
-	     NC_LONG()   => sub { long   (@_); },
-	     NC_FLOAT()  => sub { float  (@_); },
-	     NC_DOUBLE() => sub { double (@_); },
-	    );
+		NC_BYTE()   => sub { PDL::byte  (@_); },
+		NC_CHAR()   => sub { PDL::byte  (@_); },
+		NC_SHORT()  => sub { PDL::short (@_); },
+		NC_LONG()   => sub { PDL::long  (@_); },
+		NC_FLOAT()  => sub { PDL::float (@_); },
+		NC_DOUBLE() => sub { PDL::double(@_); },
+		);
 
 # This routine hooks up an object to a NetCDF file.
 sub new {
@@ -290,34 +291,6 @@ sub DESTROY {
 # Start of (perl part of) traditional interface
 #--------------------------------------------------------------
 
-
-# This routine quickly creates a PDL object of the correct type.
-# This would better be done in the PDL code itself.  The
-# PDL::zeroes routine always defaults to float--it should be
-# made flexible enough to create any type PDL.
-# This routine pretends it is in class PDL.
-#
-# Create zero filled array (function/inheritable constructor).
-# Allow user to specify the type of the PDL
-sub typed_zeroes {
-  my $class = shift;  
-  my $shape = shift;
-  my $type  = shift;
-  if (!defined($type)) { $type = $PDL::Core::PDL_F; } # default to float
-  
-  my $nelems = 1; my @dims;
-  for (@$shape) { 
-    croak "Dimensions must be positive" if $_<=0;
-    $nelems *= $_; push @dims, $_ 
-    }
-  my $pdl = bless {}, $class;
-  $$pdl{Data}     = "\0"x($nelems*PDL::Core::howbig($type));
-  $$pdl{Datatype} = $type;
-  $$pdl{Dims}     = [@dims];
-  return $pdl;
-} 
-
-
 # Get a variable into a pdl.
 sub ncvarget {
   my $ncid  = shift;
@@ -347,10 +320,10 @@ sub ncvarget {
   # Create empty PDL (of correct type and size) to hold output from NetCDF file
   my @cnt = grep {$_ != 1} @$count; # Get rid of length-one dimensions
   if (@cnt == 0) { $cnt[0] = 1; }   # If no dimensions left, add one single length one.
-  my $pdl = typed_zeroes('PDL', [reverse @cnt], $typemap{$datatype});
+  my $pdl = &{$typemap{$datatype}}(reverse @cnt);	
 
   # Get the data
-  $rc = ncvargetscalar($ncid, $varid, $start, $count, $pdl->{Data});
+  $rc = ncvargetscalar($ncid, $varid, $start, $count, ${$pdl->get_dataref});
   croak "Cannot get data from this var id" if ($rc != 0); 
   
   return $pdl;
