@@ -6,7 +6,7 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..25\n"; }
+BEGIN { $| = 1; print "1..28\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use PDL;
 use PDL::NetCDF;
@@ -61,10 +61,33 @@ $charout = $obj->get('varchar');
 $ok = sum($pdlchar - $charout) == 0;
 print( ($ok ? "ok ": "not ok "), "6\n" ); 
 
+$pdlchar1 = PDL::Char->new ("abcdefghiklm");
+$obj->put ('varchar1', ['dimc4'], $pdlchar1);
+$charout = $obj->get('varchar1');
+$ok = sum($pdlchar1 - $charout) == 0;
+print( ($ok ? "ok ": "not ok "), "6.1\n" ); 
+
+# Test compressed put and get
+my $tol = 1e-6;
+my $pi = 4*atan2(1,1);
+my $pdlc = PDL->new ($pi, $pi/2, $pi/4, $pi/8);
+$obj->put ('cpi', ['dimnew'], $pdlc, {COMPRESS => 1});
+my $pdlout = $obj->get('cpi');
+$ok = sum($pdlc - $pdlout) < $tol;
+print( ($ok ? "ok ": "not ok "), "6.2\n" );
+
 $ok = !$obj->close;
 print( ($ok ? "ok ": "not ok "), "7\n" ); 
 
-# Try again with existing file
+# try a fast open
+my $nc1 = PDL::NetCDF->new('foo.nc', {TEMPLATE => $obj});
+my $varnames = $nc1->getvariablenames;
+$ok = grep(/^var1$/,@$varnames) + grep(/^textvar$/,@$varnames);
+print( ($ok==2 ? "ok ": "not ok "), "7.1\n" );
+$ok = !$nc1->close;
+print( ($ok ? "ok ": "not ok "), "7.2\n" );
+
+# Try rewriting an existing file
 $obj1 = PDL::NetCDF->new ('>foo.nc');
 my $varnames = $obj1->getvariablenames;
 $ok = grep(/^var1$/,@$varnames) + grep(/^textvar$/,@$varnames);
@@ -73,10 +96,6 @@ print( ($ok==2 ? "ok ": "not ok "), "8\n" );
 my $dimnames = $obj1->getdimensionnames;
 $ok = grep(/^dim1$/,@$dimnames) + grep(/^dim2$/,@$dimnames) + grep(/^n_string$/,@$dimnames) + grep(/^n_station$/,@$dimnames);
 print( ($ok==4 ? "ok ": "not ok "), "9\n" ); 
-
-my $dimnames = $obj1->getdimensionnames ("var2");
-$ok = grep(/^dim1$/,@$dimnames) + grep(/^dim2$/,@$dimnames);
-print( ($ok==2 ? "ok ": "not ok "), "9.1\n" ); 
 
 $pdl = pdl [[1,2,3], [4,5,6]];
 $obj1->put ('var1', ['dim1', 'dim2'], $pdl);
@@ -113,41 +132,43 @@ print( ($attout eq 'Text Attribute' ? "ok ": "not ok "), "16\n" );
 #
 # First slice needs dimids and values to define variable, subsequent slices do not.
 #
-$out2 = $obj->putslice('var2', ['dim1','dim2','dim3'],[2,3,2],[0,0,0],[2,3,1],$pdl1);
+$out2 = $obj1->putslice('var2', ['dim1','dim2','dim3'],[2,3,2],[0,0,0],[2,3,1],$pdl1);
 
 $pdl2 = pdl [[7,8,9], [10,11,12]];
-$out2 = $obj->putslice('var2',[] ,[] ,[0,0,1],[2,3,1],$pdl2);
+$out2 = $obj1->putslice('var2',[] ,[] ,[0,0,1],[2,3,1],$pdl2);
 print( ($out2 ? "not ok ": "ok "), "17\n" ); 
 
 $pdlchar = PDL::Char->new (['a  ','def','ghi']);
-$out2 = $obj->putslice('tvar', ['recNum','strlen'],[PDL::NetCDF::NC_UNLIMITED(),10],[0,0],[3,3],$pdlchar);
+$out2 = $obj1->putslice('tvar', ['recNum','strlen'],[PDL::NetCDF::NC_UNLIMITED(),10],[0,0],[3,3],$pdlchar);
 print( ($out2 ? "not ok ": "ok "), "18\n" ); 
 
 $pdlchar = PDL::Char->new (['zzzz']);
-$out2 = $obj->putslice('tvar',[],[],[5,0],[1,4],$pdlchar);
+$out2 = $obj1->putslice('tvar',[],[],[5,0],[1,4],$pdlchar);
 print( ($out2 ? "not ok ": "ok "), "19\n" ); 
 
 $svar = short(27);
-$out2 = $obj->putslice('svar', ['recNum'],[PDL::NetCDF::NC_UNLIMITED()],[0],[1],$svar);
+$out2 = $obj1->putslice('svar', ['recNum'],[PDL::NetCDF::NC_UNLIMITED()],[0],[1],$svar);
 print( ($out2 ? "not ok ": "ok "), "20\n" ); 
 
 $svar = short(13);
-$out2 = $obj->putslice('svar', [],[],[8],[1],$svar);
+$out2 = $obj1->putslice('svar', [],[],[8],[1],$svar);
 print( ($out2 ? "not ok ": "ok "), "21\n" ); 
 
 
 # Get slices
-$out2 = $obj->get ('var1', [1,1], [1,1]);
+$out2 = $obj1->get ('var1', [1,1], [1,1]);
 $ok = ($out2 == pdl[5])->sum == $out2->nelem;
 print( ($ok ? "ok ": "not ok "), "22\n" ); 
 
-$out2 = $obj->get ('var1', [0,1], [2,1]);
+$out2 = $obj1->get ('var1', [0,1], [2,1]);
 $ok = ($out2 == pdl[2,5])->sum == $out2->nelem;
 print( ($ok ? "ok ": "not ok "), "23\n" ); 
 
-$out2 = $obj->get ('var1', [0,1], [1,1]);
+$out2 = $obj1->get ('var1', [0,1], [1,1]);
 $ok = ($out2 == pdl[2])->sum == $out2->nelem;
 print( ($ok ? "ok ": "not ok "), "24\n" ); 
+
+
 
 # Test with a bogus file
 open (IN, ">bogus.nc");

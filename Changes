@@ -28,7 +28,12 @@ Revision history for Perl extension PDL::NetCDFobj
 0.81  5/15/2002
         - Added Environment variables NETCDF_LIBDIR and NETCDF_INCDIR which
           you can use to tell where to find netcdf.
-0.82  8/28/2002
+0.84  8/28/2002
         - Added PREREQ_PM for PDL version 2.2 or later to satisfy CPANPLUS email.
-
+        - Changed barfs to croaks--give error info from point of view of caller
+        - Fixed two bugs in getdimensionnames and gettext:  Failed to check 
+          existance of $self->{VARIDS}{$varnm} before making netcdf library call.
+	- Changed 'fast' option on new() to the more general {TEMPLATE => } option.
+	- Added options for compression and decompression of netCDF files to/from
+	  PDLs.  Uses (mostly) standard netCDF offset/multiplier compression.
 

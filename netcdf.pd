@@ -99,7 +99,9 @@ Create an object representing a netCDF file.
 
  Arguments:  
  1) The name of the file.
- 2) (optional) An existing netCDF object for a file with
+ 2) optional:  A hashref containing options.  Currently defined are:
+    TEMPLATE:
+    An existing netCDF object for a file with
     identical layout.  This allows one to read in many similar netCDF
     files without incurring the overhead of reading in all variable
     and dimension names and IDs each time.  Caution:  Undefined
@@ -111,7 +113,7 @@ Example:
   my $nc = PDL::NetCDF->new ("file1.nc");
   ...
   foreach my $ncfile (@a_bunch_of_similar_format_netcdf_files) {
-    $nc = PDL::NetCDF->new("file2.nc", $nc);  # These calls to 'new' are *much* faster
+    $nc = PDL::NetCDF->new("file2.nc", {TEMPLATE => $nc});  # These calls to 'new' are *much* faster
     ...
   }
 
@@ -467,7 +469,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.82';
+$VERSION = '0.84';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
@@ -661,6 +663,8 @@ EODEF
 
 pp_addpm (<<'EOPM');
 
+use Carp;
+
 # Used for creating new blank pdls with the input number of dimensions, and
 # the correct type.
 my %typemap = (
@@ -748,22 +752,29 @@ my %typemap8 = (
 		PDL::double->[0] => sub { PDL::NetCDF::nc_put_vara_double (@_); },
 		);
 
+# maps original type to compressed type
+my %compressionMap = (
+                      PDL::float->[0]  => PDL::short->[0],
+                      PDL::double->[0] => PDL::long->[0],
+                      );
+
 # This routine hooks up an object to a NetCDF file.
 sub new {
   my $type = shift;
   my $file = shift;
-  my $self = shift;
+
+  my $opt  = shift || {};  # options hash
 
   my $fast = 0;  # fast new does not inquire about all variables and dimensions.
                  # This is assumed to have been done before.  All this info
                  # is taken from the previous nc object.  This is useful
 	         # if one has to process many identical netCDF files.
 
-  if (defined($self)) {
+  my $self = {};
+  if (exists($$opt{TEMPLATE})) {
     $fast = 1;
-  } else {
-    $self = {};
-  }
+    $self = $$opt{TEMPLATE};	
+  } 
 
   my $rc;
   my $write;
@@ -778,13 +789,13 @@ sub new {
     if ($write) {
 
       $rc = PDL::NetCDF::nc_open ($file, NC_WRITE(), $self->{NCID}=-999);
-      barf ("new:  Cannot open file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+      croak ("new:  Cannot open file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
       $self->{WR} = 'w';
 
     } else { # Open read-only
 
       $rc = PDL::NetCDF::nc_open ($file, 0, $self->{NCID}=-999);
-      barf ("new:  Cannot open file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+      croak ("new:  Cannot open file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
       $self->{WR} = 'r';
 
       # Specify that this file is out of define mode
@@ -803,49 +814,49 @@ sub new {
     my ($ndims, $nvars, $ngatts, $unlimid);
 
 #    $rc = PDL::NetCDF::nc_inq_ndims ($self->{NCID}, $ndims=-999);
-#    barf ("new:  Cannot inquire ndims -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+#    croak ("new:  Cannot inquire ndims -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
 #    $rc = PDL::NetCDF::nc_inq_nvars ($self->{NCID}, $nvars=-999);
-#    barf ("new:  Cannot inquire nvars -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+#    croak ("new:  Cannot inquire nvars -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
 
     $rc = PDL::NetCDF::nc_inq ($self->{NCID}, $ndims=-999, $nvars=-999, $ngatts=-999, $unlimid=-999);
-    barf ("new:  Cannot inquire -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+    croak ("new:  Cannot inquire -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
 
     
     for (my $i=0;$i<$ndims;$i++) {
       $rc = PDL::NetCDF::nc_inq_dimname ($self->{NCID}, $i, 
 					 my $name='x' x NC_MAX_NAME()); # Preallocate strings
-      barf ("new:  Cannot inquire dim name -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
+      croak ("new:  Cannot inquire dim name -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
       $self->{DIMIDS}{$name} = $i;
       
       $rc = PDL::NetCDF::nc_inq_dimlen ($self->{NCID}, $i, my $len = -999);
-      barf ("new:  Cannot inquire dim length -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
+      croak ("new:  Cannot inquire dim length -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
       $self->{DIMLENS}{$name} = $len;
     }
     
     for (my $i=0;$i<$nvars;$i++) {
       $rc = PDL::NetCDF::nc_inq_varname ($self->{NCID}, $i, 
 					 my $name='x' x NC_MAX_NAME()); # Preallocate strings
-      barf ("new:  Cannot inquire var name -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
+      croak ("new:  Cannot inquire var name -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
       $self->{VARIDS}{$name} = $i;
 
       $rc  = PDL::NetCDF::nc_inq_vartype ($self->{NCID}, $self->{VARIDS}{$name}, 
 					     $self->{DATATYPES}{$name}=-999);
-      barf ("new:  Cannot inquire var type -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
+      croak ("new:  Cannot inquire var type -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
       
       $rc = PDL::NetCDF::nc_inq_varnatts ($self->{NCID}, $i,
                                        my $natts=-999);
-      barf ("new:  Cannot inquire natts -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
+      croak ("new:  Cannot inquire natts -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
       for (my $j=0;$j<$natts; $j++) {
         $rc = PDL::NetCDF::nc_inq_attname ($self->{NCID}, $i, $j,
                                        my $attname='x' x NC_MAX_NAME()); # Preallocate strings
-        barf ("new:  Cannot inquire att name -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
+        croak ("new:  Cannot inquire att name -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
 
         # Determine the type and length of this attribute
         $rc = PDL::NetCDF::nc_inq_atttype ($self->{NCID}, $i, $attname, my $datatype=-999);
-        barf ("new:  Cannot get attribute type -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
+        croak ("new:  Cannot get attribute type -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
 
         $rc = PDL::NetCDF::nc_inq_attlen ($self->{NCID}, $i, $attname, my $attlen=-999);
-        barf ("new:  Cannot get attribute length -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
+        croak ("new:  Cannot get attribute length -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
 
 
         $self->{ATTTYPE}{$name}{$attname}=$datatype;
@@ -858,15 +869,15 @@ sub new {
       $self->{VARIDS}{GLOBAL}=NC_GLOBAL();
       $rc = PDL::NetCDF::nc_inq_attname ($self->{NCID},$self->{VARIDS}{GLOBAL} , $i,
                                        my $attname='x' x NC_MAX_NAME()); # Preallocate strings
-      barf ("new:  Cannot inquire global att name -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
+      croak ("new:  Cannot inquire global att name -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
 
 
         # Determine the type and length of this attribute
         $rc = PDL::NetCDF::nc_inq_atttype ($self->{NCID}, $self->{VARIDS}{GLOBAL}, $attname, my $datatype=-999);
-        barf ("new:  Cannot get attribute type -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
+        croak ("new:  Cannot get attribute type -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
 
         $rc = PDL::NetCDF::nc_inq_attlen ($self->{NCID}, $self->{VARIDS}{GLOBAL}, $attname, my $attlen=-999);
-        barf ("new:  Cannot get attribute length -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
+        croak ("new:  Cannot get attribute length -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
 
 
         $self->{ATTTYPE}{GLOBAL}{$attname}=$datatype;
@@ -881,7 +892,7 @@ sub new {
   } else { # new file
     
     $rc = PDL::NetCDF::nc_create ($file, NC_CLOBBER(), $self->{NCID}=-999);
-    barf ("new:  Cannot create netCDF file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
+    croak ("new:  Cannot create netCDF file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
     
     # Specify that this file is now in define mode
     $self->{DEFINE} = 1;
@@ -919,14 +930,19 @@ sub getdimensionnames {
   my $dimnames = [];
   my $dimids = [values %{$self->{DIMIDS}}];
   if (defined $varnm) {
-    my $ndims;
-    my $rc = PDL::NetCDF::nc_inq_varndims ($self->{NCID}, $self->{VARIDS}{$varnm}, $ndims=-999);
+    my ($ndims, $rc);
 
+    # Cannot call nc_inq_varndims unless $self->{VARIDS}{$varnm} is defined
+    if (!defined($self->{VARIDS}{$varnm})) {
+      $ndims = 0;
+    } else {  # normal case
+      $rc = PDL::NetCDF::nc_inq_varndims ($self->{NCID}, $self->{VARIDS}{$varnm}, $ndims=-999);
+    }
 
     if ($ndims > 0) {
       $dimids = zeroes (PDL::long, $ndims);
       $rc |= PDL::NetCDF::nc_inq_vardimid ($self->{NCID}, $self->{VARIDS}{$varnm}, $dimids);
-      barf ("getdimensionnames:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+      croak ("getdimensionnames:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
       $dimids = [list $dimids];
     } else {
       $dimids = [];
@@ -940,15 +956,18 @@ sub getdimensionnames {
   $dimnames;
 }
 
-# Return the names of all variables in the netCDF file.
+# Return the names of all variables in the netCDF file.  Special care
+# is taken to return them in the order defined in the file.
 sub getvariablenames {
-  my $self = shift;
-  my $varnames = [];
-  foreach(keys %{$self->{VARIDS}}){
-    next if($self->{VARIDS}{$_} == NC_GLOBAL());
-    push(@$varnames,$_);
+  our $self = shift;
+  my @varnames = ();
+  for my $varn (keys %{$self->{VARIDS}}){
+    next if($self->{VARIDS}{$varn} == NC_GLOBAL());
+    push (@varnames, $varn);
   }
-  $varnames;
+  sub by_id { $self->{VARIDS}{$a} <=> $self->{VARIDS}{$b} };
+  @varnames = sort by_id (@varnames);
+  return \@varnames;
 } 
 
 # Return the names of all attribute names in the netCDF file.
@@ -963,14 +982,16 @@ sub getattributenames {
   $attnames;
 } 
 
+
 # Put a netCDF variable from a PDL
 sub put {
   my $self  = shift;  # name of object
   my $varnm = shift;  # name of netCDF variable to create or update
   my $dims  = shift;  # set of dimensions, i.e. ['dim1', 'dim2']
   my $pdl   = shift;  # PDL to put
+  my $opt   = shift || {};
 
-  barf "Cannot write read-only netCDF file $self->{FILENM}" if ($self->{WR} eq 'r');
+  croak "Cannot write read-only netCDF file $self->{FILENM}" if ($self->{WR} eq 'r');
 
   # Define dimensions if necessary
 
@@ -983,43 +1004,46 @@ sub put {
 
       unless ($self->{DEFINE}) {
 	my $rc = PDL::NetCDF::nc_redef ($self->{NCID});
-	barf ("Cannot put file into define mode") if $rc;
+	croak ("Cannot put file into define mode") if $rc;
 	$self->{DEFINE} = 1;
       }
 
 
       my $rc = PDL::NetCDF::nc_def_dim ($self->{NCID}, $$dims[$i], $dimlens[$i], 
 				$self->{DIMIDS}{$$dims[$i]}=-999);
-      barf ("put:  Cannot define dimension -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+      croak ("put:  Cannot define dimension -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
 
       $self->{DIMLENS}{$$dims[$i]} = $dimlens[$i];
 
     }
     set ($dimids, $i, $self->{DIMIDS}{$$dims[$i]});
 
-    barf ("put:  Attempt to redefine length of dimension $$dims[$i]") 
+    croak ("put:  Attempt to redefine length of dimension $$dims[$i]") 
       if ($self->{DIMLENS}{$$dims[$i]} != $dimlens[$i]);
     
   }
+
+  my ($datatype, $pdltype);
 
   # Define variable if necessary
   if (!defined($self->{VARIDS}{$varnm})) {
   
     unless ($self->{DEFINE}) {
       my $rc = PDL::NetCDF::nc_redef ($self->{NCID});
-      barf ("put:  Cannot put file into define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+      croak ("put:  Cannot put file into define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
       $self->{DEFINE} = 1;
     }
 
-    my $datatype;
     if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
       $datatype = NC_CHAR();
     } else {
-      $datatype = $typemap3{$pdl->get_datatype};
+      $pdltype  = $pdl->get_datatype;
+      $pdltype  = $compressionMap{$pdltype} if ($opt->{COMPRESS});
+      $datatype = $typemap3{$pdltype};
     }
     my $rc = PDL::NetCDF::nc_def_var ($self->{NCID}, $varnm, $datatype, 
 			   scalar(@dimlens), $dimids, $self->{VARIDS}{$varnm}=-999);
-    barf ("put:  Cannot define variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+    croak ("put:  Cannot define variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
 
     $self->{DATATYPES}{$varnm} = $datatype;
 
@@ -1031,20 +1055,64 @@ sub put {
   # Get out of define mode
   if ($self->{DEFINE}) {
     my $rc = PDL::NetCDF::nc_enddef ($self->{NCID});
-    barf ("put:  Cannot end define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+    croak ("put:  Cannot end define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
     $self->{DEFINE} = 0;
   }
 
   # Call the correct 'put' routine depending on PDL type
   if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
-    $rc = PDL::NetCDF::nc_put_var_text ($self->{NCID}, $self->{VARIDS}{$varnm}, ${$pdl->get_dataref}."\0"); # null terminate!
+    $rc = PDL::NetCDF::nc_put_var_text ($self->{NCID}, $self->{VARIDS}{$varnm}, ${$pdl->get_dataref}); 
   } else {
-    $rc = &{$typemap2{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $pdl);
+
+    #
+    ## compute a compressed PDL to put if compression is requested
+    #
+    if ($opt->{COMPRESS}) {
+
+      my $var = $pdl->copy;
+      my ($min, $max) = $var->minmax;
+      my $r1 = ($max - $min);
+      my ($add_offset, $scale_factor, $newfill);
+
+      if      ($pdltype == PDL::short->[0]) {  # original type = float,  new type = short
+	my $r2 = 2**16 - 2;   # positive range of unsigned short with one left over for an error value (max short)
+	$var -= $min;
+	$var *= ($r2/$r1);
+	$var -= 2**15;        # map values from min(short) to max(short)
+	$newfill = (2**15)-1; # max(short) = fill value
+	$var->inplace->setbadtoval($newfill);
+	$rc = &{$typemap2{$pdltype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $var->short);
+	$add_offset   = float([$min]);
+	$scale_factor = float([$r1/$r2])
+      } elsif ($pdltype == PDL::long->[0]) {  # original type = double, new type = long
+	my $r2 = 2**32 - 2;   # positive range of unsigned long with one left over for an error value (max short)
+	$var -= $min;
+	$var *= ($r2/$r1);
+	$var -= 2**31;        # map values from min(long) to max(long)
+	$newfill = (2**31)-1; # max(long) = fill value
+	$var->inplace->setbadtoval($newfill);
+	$rc = &{$typemap2{$pdltype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $var->long);
+	$add_offset   = double([$min]);
+	$scale_factor = double([$r1/$r2]);
+      } else {
+        croak ("put (compressed):  compression of other than float or double variables not supported");
+      }
+      croak ("put (compressed):  Cannot write file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+
+      # write compression attributes
+      $self->putatt($newfill,      '_FillValue',   $varnm);
+      $self->putatt($add_offset,   'add_offset',   $varnm);
+      $self->putatt($scale_factor, 'scale_factor', $varnm);
+
+    } else { # no compression
+      $rc = &{$typemap2{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $pdl);
+      croak ("put:  Cannot write file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+    }
+
   }
-  barf ("put:  Cannot write file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
-  
+
   $rc = PDL::NetCDF::nc_sync($self->{NCID});
-  barf ("put:  Cannot sync file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+  croak ("put:  Cannot sync file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
 
   return 0;
 
@@ -1065,7 +1133,7 @@ sub putslice {
 
   my $pdl   = shift;  # PDL to put
 
-  barf "Cannot write read-only netCDF file $self->{FILENM}" if ($self->{WR} eq 'r');
+  croak "Cannot write read-only netCDF file $self->{FILENM}" if ($self->{WR} eq 'r');
 
   if (!defined($self->{VARIDS}{$varnm})) {
 
@@ -1078,21 +1146,21 @@ sub putslice {
 
       unless ($self->{DEFINE}) {
 	my $rc = PDL::NetCDF::nc_redef ($self->{NCID});
-	barf ("Cannot put file into define mode") if $rc;
+	croak ("Cannot put file into define mode") if $rc;
 	$self->{DEFINE} = 1;
       }
 
 
       my $rc = PDL::NetCDF::nc_def_dim ($self->{NCID}, $$dims[$i], $dimlens[$i], 
 				$self->{DIMIDS}{$$dims[$i]}=-999);
-      barf ("put:  Cannot define dimension -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+      croak ("put:  Cannot define dimension -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
 
       $self->{DIMLENS}{$$dims[$i]} = $dimlens[$i];
 
     }
     set ($dimids, $i, $self->{DIMIDS}{$$dims[$i]});
 
-    barf ("putslice:  Attempt to redefine length of dimension $$dims[$i]") 
+    croak ("putslice:  Attempt to redefine length of dimension $$dims[$i]") 
       if ($self->{DIMLENS}{$$dims[$i]} != $dimlens[$i]);
     
   }
@@ -1101,7 +1169,7 @@ sub putslice {
 
     unless ($self->{DEFINE}) {
       my $rc = PDL::NetCDF::nc_redef ($self->{NCID});
-      barf ("put:  Cannot put file into define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+      croak ("put:  Cannot put file into define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
       $self->{DEFINE} = 1;
     }
     my $datatype;
@@ -1113,7 +1181,7 @@ sub putslice {
 
     my $rc = PDL::NetCDF::nc_def_var ($self->{NCID}, $varnm, $datatype, 
 			   scalar(@dimlens), $dimids, $self->{VARIDS}{$varnm}=-999);
-    barf ("put:  Cannot define variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+    croak ("put:  Cannot define variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
 
     $self->{DATATYPES}{$varnm} = $datatype;
 
@@ -1126,7 +1194,7 @@ sub putslice {
   # Get out of define mode
   if ($self->{DEFINE}) {
     my $rc = PDL::NetCDF::nc_enddef ($self->{NCID});
-    barf ("put:  Cannot end define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+    croak ("put:  Cannot end define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
     $self->{DEFINE} = 0;
   }
 
@@ -1150,14 +1218,14 @@ if ($Config{'longsize'} == 8) { pp_addpm ('
 pp_addpm (<<'EOPM');
   # Call the correct 'put' routine depending on PDL type
   if(ref($pdl) =~ /Char/)  {  # a PDL::Char type PDL--write a netcdf char variable
-    $rc = PDL::NetCDF::nc_put_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, ${$pdl->get_dataref}."\0"); # null terminate!
+    $rc = PDL::NetCDF::nc_put_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, ${$pdl->get_dataref});
   } else {
     $rc = &{$typemap8{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $pdl);
   }
-  barf ("put:  Cannot write file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+  croak ("put:  Cannot write file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
   
   $rc = PDL::NetCDF::nc_sync($self->{NCID});
-  barf ("put:  Cannot sync file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+  croak ("put:  Cannot sync file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
 
   return 0;
 
@@ -1176,7 +1244,7 @@ sub get {
   my $start = shift;  # ref to perl array containing start of hyperslab to get
   my $count = shift;  # ref to perl array containing count along each dimension
 
-  barf ("Cannot find variable $varnm") if (!defined($self->{VARIDS}{$varnm}));
+  croak ("Cannot find variable $varnm") if (!defined($self->{VARIDS}{$varnm}));
 
   my $pdl; # The PDL to return
   if (defined ($count)) {  # Get a hyperslab of the netCDF matrix
@@ -1213,29 +1281,30 @@ pp_addpm (<<'EOPM');
 
     # Get the data
     if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
-      my $f = ${$pdl->get_dataref} . "\0"; # null terminate!
+      my $f = ${$pdl->get_dataref};
       $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $f);
       ${$pdl->get_dataref} = $f;	
       $pdl->upd_data();
     } else {
       $rc = &{$typemap7{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $pdl);
     }
-    barf ("get:  Cannot get data -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+    croak ("get:  Cannot get data -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
 
   } else { # get whole netCDF matrix
 
     # Determine the type of this variable
     my ($ndims, $natts, $i);
     $rc = PDL::NetCDF::nc_inq_varndims ($self->{NCID}, $self->{VARIDS}{$varnm}, $ndims=-999);
+    croak ("get:  Cannot get number of variables -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    	
     my $dimids = ($ndims > 0) ? zeroes (PDL::long, $ndims) : pdl [];
-    $rc |= PDL::NetCDF::nc_inq_vardimid ($self->{NCID}, $self->{VARIDS}{$varnm}, $dimids);
-    barf ("get:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+    $rc = PDL::NetCDF::nc_inq_vardimid ($self->{NCID}, $self->{VARIDS}{$varnm}, $dimids);
+    croak ("get:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
     
     # Find out size of each dimension of this NetCDF matrix
     my ($name, $size, @cnt);
     for ($i=0;$i<$ndims;$i++) {
       my $rc = PDL::NetCDF::nc_inq_dim ($self->{NCID}, $dimids->at($i), $name='x' x NC_MAX_NAME(), $size=-999);
-      barf ("get:  Cannot get info on this dimension -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+      croak ("get:  Cannot get info on this dimension -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
       push (@cnt, $size);
     }
 
@@ -1244,17 +1313,39 @@ pp_addpm (<<'EOPM');
 
     # Get the data
     if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
-      my $f = ${$pdl->get_dataref} . "\0"; # null terminate!
+      my $f = ${$pdl->get_dataref};
       $rc = PDL::NetCDF::nc_get_var_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $f);
       ${$pdl->get_dataref} = $f;	
       $pdl->upd_data();
     } else {
       $rc = &{$typemap4{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $pdl);
     }
-    barf ("get:  Cannot get data -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
-  
+    croak ("get:  Cannot get data -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+
   }
-  
+
+  #
+  ## If this variable is compressed (simple netCDF offset/scale compression) then uncompress it.
+  #
+  if (defined (my $type = $self->{ATTTYPE}{$varnm}{'scale_factor'})) {
+    my $scale_factor = $self->getatt('scale_factor', $varnm);
+    my $add_offset   = $self->getatt('add_offset',   $varnm);
+    my $fill         = eval { $self->getatt('_FillValue',   $varnm); };
+    my $uncomp;
+    if      ($type == NC_FLOAT()) {
+      $uncomp = $pdl->float;  # create output PDL of float type
+      $uncomp->inplace->setvaltobad($fill) if (defined($fill));
+      $uncomp += 2**15;  # change signed short vals to unsigned short vals
+    } elsif ($type == NC_DOUBLE()) {
+      $uncomp = $pdl->double;  # create output PDL of float type
+      $uncomp->inplace->setvaltobad($fill) if (defined($fill));
+      $uncomp += 2**31;  # change signed long vals to unsigned long vals
+    }
+    $uncomp *= $scale_factor;
+    $uncomp += $add_offset;
+    return $uncomp;
+  }
+
   return $pdl;
 }
 EOPM
@@ -1265,11 +1356,11 @@ sub dimsize {
   my $self  = shift;
   my $dimnm = shift;
   
-  barf ("dimsize: No such dimension -- $dimnm") unless exists ($self->{DIMIDS}{$dimnm});
+  croak ("dimsize: No such dimension -- $dimnm") unless exists ($self->{DIMIDS}{$dimnm});
 
   my ($dimsz, $name);
   my $rc = nc_inq_dimlen ($self->{NCID}, $self->{DIMIDS}{$dimnm}, $dimsz=-999);
-  barf ("dimsize:  Cannot get dimension length -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+  croak ("dimsize:  Cannot get dimension length -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
   
   return $dimsz;
 }
@@ -1284,7 +1375,7 @@ sub putatt {
   my $varnm = shift;  # name of netCDF variable this attribute is to be associated with
                       # (defaults to global if not passed).
 
-  barf "Cannot write read-only netCDF file $self->{FILENM}" if ($self->{WR} eq 'r');
+  croak "Cannot write read-only netCDF file $self->{FILENM}" if ($self->{WR} eq 'r');
 
   # If no varnm passed in, fetch a global attribute
   if (!defined($varnm)) { 
@@ -1295,14 +1386,14 @@ sub putatt {
   # Put netCDF file into define mode
   unless ($self->{DEFINE}) {
     my $rc = PDL::NetCDF::nc_redef ($self->{NCID});
-    barf ("putatt:  Cannot put file into define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+    croak ("putatt:  Cannot put file into define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
     $self->{DEFINE} = 1;
   }
 
   # Attribute is a PDL one-D variable
   if (ref $att eq 'PDL') {
 
-    barf ("Attributes can only be 1 dimensional") if ($att->dims != 1);
+    croak ("Attributes can only be 1 dimensional") if ($att->dims != 1);
 
     # Make PDL physical
     $att->make_physical;
@@ -1311,7 +1402,7 @@ sub putatt {
     my $rc = &{$typemap5{$att->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, 
 					      $attnm, $typemap3{$att->get_datatype},
 					      nelem ($att), $att);
-    barf ("putatt:  Cannot put PDL attribute -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
+    croak ("putatt:  Cannot put PDL attribute -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
   
 #
 #  update self 
@@ -1325,7 +1416,7 @@ sub putatt {
     # Put the attribute
     my $rc = PDL::NetCDF::nc_put_att_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $attnm,
 			      length($att), $att."\0"); # null terminate!
-    barf ("putatt:  Cannot put string attribute -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
+    croak ("putatt:  Cannot put string attribute -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
 
 #
 #  update self 
@@ -1336,19 +1427,19 @@ sub putatt {
 
   } else {
 
-    barf ("Attributes of this type not supported");
+    croak ("Attributes of this type not supported");
 
   }
 
   # Get out of define mode
   if ($self->{DEFINE}) {
     my $rc = PDL::NetCDF::nc_enddef ($self->{NCID});
-    barf ("put:  Cannot end define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+    croak ("put:  Cannot end define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
     $self->{DEFINE} = 0;
   }
 
   $rc = PDL::NetCDF::nc_sync($self->{NCID});
-  barf ("putatt:  Cannot sync file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+  croak ("putatt:  Cannot sync file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
 
   return 0;
 
@@ -1373,20 +1464,20 @@ sub getatt {
      $datatype = $self->{ATTTYPE}{$varnm}{$attnm};
      $attlen = $self->{ATTLEN}{$varnm}{$attnm};
   }else{
-     barf ("getatt:  Attribute not found -- $varnm:$attnm");
+     croak ("getatt:  Attribute not found -- $varnm:$attnm");
   } 
 #  $rc = PDL::NetCDF::nc_inq_atttype ($self->{NCID}, $self->{VARIDS}{$varnm}, $attnm, my $datatype=-999);
-#  barf ("getatt:  Cannot get attribute type -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
+#  croak ("getatt:  Cannot get attribute type -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
 #
 #  $rc = PDL::NetCDF::nc_inq_attlen ($self->{NCID}, $self->{VARIDS}{$varnm}, $attnm, my $attlen=-999);
-#  barf ("getatt:  Cannot get attribute length -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
+#  croak ("getatt:  Cannot get attribute length -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
 
   # Get text attribute into perl string
   if ($datatype == NC_CHAR()) {
 
     $rc = PDL::NetCDF::nc_get_att_text ($self->{NCID}, $self->{VARIDS}{$varnm}, 
 			   $attnm, my $str=('x' x $attlen)."\0"); # null terminate!
-    barf ("getatt:  Cannot get text attribute -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
+    croak ("getatt:  Cannot get text attribute -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
 
     return $str;
 
@@ -1399,7 +1490,7 @@ sub getatt {
 
   # Get the attribute
   $rc = &{$typemap6{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $attnm, $pdl);
-  barf ("getatt:  Cannot get attribute -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+  croak ("getatt:  Cannot get attribute -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
   
   return $pdl;
 
@@ -1419,7 +1510,7 @@ sub puttext {
   
   my $ndims = scalar(@$dimlens);
 
-  barf "Cannot write read-only netCDF file $self->{FILENM}" if ($self->{WR} eq 'r');
+  croak "Cannot write read-only netCDF file $self->{FILENM}" if ($self->{WR} eq 'r');
 
   # Define dimensions if necessary
 
@@ -1429,20 +1520,20 @@ sub puttext {
 
       unless ($self->{DEFINE}) {
 	my $rc = PDL::NetCDF::nc_redef ($self->{NCID});
-	barf ("Cannot put file into define mode") if $rc;
+	croak ("Cannot put file into define mode") if $rc;
 	$self->{DEFINE} = 1;
       }
 
       my $rc = PDL::NetCDF::nc_def_dim ($self->{NCID}, $$dims[$i], $$dimlens[$i], 
 				$self->{DIMIDS}{$$dims[$i]}=-999);
-      barf ("put:  Cannot define dimension -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+      croak ("put:  Cannot define dimension -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
 
       $self->{DIMLENS}{$$dims[$i]} = $$dimlens[$i];
 
     }
     set ($dimids, $i, $self->{DIMIDS}{$$dims[$i]});
 
-    barf ("put:  Attempt to redefine length of dimension $$dims[$i]") 
+    croak ("put:  Attempt to redefine length of dimension $$dims[$i]") 
       if ($self->{DIMLENS}{$$dims[$i]} != $$dimlens[$i]);
     
   }
@@ -1452,14 +1543,14 @@ sub puttext {
   
     unless ($self->{DEFINE}) {
       my $rc = PDL::NetCDF::nc_redef ($self->{NCID});
-      barf ("put:  Cannot put file into define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+      croak ("put:  Cannot put file into define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
       $self->{DEFINE} = 1;
     }
 
     my $datatype =  NC_CHAR();
     my $rc = PDL::NetCDF::nc_def_var ($self->{NCID}, $varnm, $datatype, 
 			   $ndims, $dimids, $self->{VARIDS}{$varnm}=-999);
-    barf ("put:  Cannot define variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+    croak ("put:  Cannot define variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
 
     $self->{DATATYPES}{$varnm} = $datatype;
 
@@ -1468,7 +1559,7 @@ sub puttext {
   # Get out of define mode
   if ($self->{DEFINE}) {
     my $rc = PDL::NetCDF::nc_enddef ($self->{NCID});
-    barf ("put:  Cannot end define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+    croak ("put:  Cannot end define mode -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
     $self->{DEFINE} = 0;
   }
 
@@ -1494,10 +1585,10 @@ pp_addpm (<<'EOPM');
 
   # Call the 'put' routine 
   $rc = PDL::NetCDF::nc_put_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $str."\0"); # null terminate!
-  barf ("put:  Cannot write file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+  croak ("put:  Cannot write file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
   
   $rc = PDL::NetCDF::nc_sync($self->{NCID});
-  barf ("put:  Cannot sync file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+  croak ("put:  Cannot sync file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
 
   return 0;
 }
@@ -1511,10 +1602,14 @@ sub gettext {
   
   # Determine the type of this variable
   my ($ndims, $natts, $i, $rc);
+
+  return '' unless (defined($self->{VARIDS}{$varnm}));
+
   $rc = PDL::NetCDF::nc_inq_varndims ($self->{NCID}, $self->{VARIDS}{$varnm}, $ndims=-999);
+  croak ("get:  Cannot get number of variables -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    		
   my $dimids = zeroes (PDL::long, $ndims);
-  $rc |= PDL::NetCDF::nc_inq_vardimid ($self->{NCID}, $self->{VARIDS}{$varnm}, $dimids);
-  barf ("get:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+  $rc = PDL::NetCDF::nc_inq_vardimid ($self->{NCID}, $self->{VARIDS}{$varnm}, $dimids);
+  croak ("get:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
   
   # Find out size of each dimension of this NetCDF matrix
   my ($name, $size, $total_size, @dims);
@@ -1522,7 +1617,7 @@ sub gettext {
   @dims = ();
   for ($i=0;$i<$ndims;$i++) {
       my $rc = PDL::NetCDF::nc_inq_dim ($self->{NCID}, $dimids->at($i), $name='x' x NC_MAX_NAME(), $size=-999);
-      barf ("get:  Cannot get info on this dimension -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+      croak ("get:  Cannot get info on this dimension -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
       $total_size *= $size;
       push (@dims, $size);
   }
@@ -1530,7 +1625,7 @@ sub gettext {
   my $datatype = $self->{DATATYPES}{$varnm};
 
   # Get text attribute into perl string
-  barf ("gettext:  Data not of string type") if ($datatype != NC_CHAR());
+  croak ("gettext:  Data not of string type") if ($datatype != NC_CHAR());
 
 
 EOPM
@@ -1553,7 +1648,7 @@ if ($Config{'longsize'} == 8) { pp_addpm ('
 pp_addpm (<<'EOPM');
 
   $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, my $str=('x' x $total_size)."\0"); # null terminate!
-  barf ("gettext:  Cannot get text variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
+  croak ("gettext:  Cannot get text variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  
 
   return $str;
 
