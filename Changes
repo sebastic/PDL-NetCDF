@@ -1,0 +1,12 @@
+Revision history for Perl extension PDL::NetCDF.
+
+0.01  Thu Feb 27 13:23:19 1997
+	- original version; created by h2xs 1.16
+
+0.1   3/5/97
+        - First working internal version
+
+0.3   3/11/97
+        - Now includes object oriented (read only) interface.
+        - Also, imports all constants as NC_FOO and all subroutines
+          as ncfoo.

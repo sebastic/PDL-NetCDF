@@ -1,0 +1,45 @@
+PDL::NetCDF, version 0.30
+
+Allows reading and writing of NetCDF files into and out of PDL objects.
+
+The following are required for installation:
+
+-- PDL version 1.10 or 1.11.  Will likely not work on v2.0 alphas.
+   You are welcome to try, however!
+-- perl 5.003 (or later)
+-- NetCDF version 2.3.2, patch level 4 or later
+
+The first two are available on CPAN.  The third is available from UCAR UNIDATA 
+at 
+
+http://www.unidata.ucar.edu/packages/netcdf/index.html
+
+INSTALLATION:
+
+Once the above are installed, edit the Makefile.PL to add the
+lib and include paths for your machine's NetCDF installation:
+
+On my Sun Solaris machine, these are the correct values:
+
+$netcdf_lib_path     = '/opt/local/lib';
+$netcdf_include_path = '/opt/local/include';
+
+On many other UNIX flavors, the correct paths may be
+/usr/local/*
+
+Once this is done, do the normal perl extension thing:
+
+perl Makefile.PL
+make
+make test
+
+(as root)
+make install
+
+Best of luck!
+
+Doug Hunt
+dhunt@ucar.edu
+Software Engineer III
+UCAR - GPS/MET 
+

@@ -1,0 +1,9 @@
+Changes
+COPYRIGHT
+README
+MANIFEST
+MANIFEST.SKIP
+Makefile.PL
+NetCDF.pm
+NetCDF.xs
+test.pl
