@@ -1,0 +1,107 @@
+PDL::NetCDF, version 0.50
+
+Allows reading and writing of NetCDF files into and out of PDL objects using
+a simple object-oriented interface.  NetCDF is a flexible, binary, portable
+file standard for storing gridded data.  One can access netCDF files through
+interface libraries in FORTRAN, C/C++ and perl.  Numerous utilities also exist
+for manipulating these files.
+
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+NOTE:  This package *used* to be called PDL::NetCDFobj.  The *old* PDL::NetCDF
+was a quick re-write of the NetCDF perl package available from unidata
+(http://www.unidata.ucar.edu/packages/netcdf) to return PDLs instead of nested
+perl lists.
+
+This package is a new, higher-level, 
+object-oriented interface to netCDF, which is more tightly integrated to PDL.
+The old PDL::NetCDF is no longer supported.
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+
+The following are required for installation:
+
+-- PDL v2.0 alpha (tested with pdl v1.99989), or PDL v2.X, when it
+   comes out.
+
+If you want to use the production version of pdl (pdl 1.11), please
+use PDL::NetCDF version 0.34, also available on CPAN.  PDL::NetCDF is
+somewhat buggy but perfectly useable.  I will not update it in the
+future, preferring instead to work on PDL::NetCDFobj.  I changed the
+name because PDL::NetCDFobj uses an interface which is incompatible
+with that of PDL::NetCDF.
+
+-- perl 5.004 (or later)
+-- NetCDF version 3 or later
+
+The first two are available on CPAN.  The third is available from UCAR UNIDATA 
+at 
+
+http://www.unidata.ucar.edu/packages/netcdf/index.html
+
+
+SYNOPSIS:
+
+use PDL;
+use PDL::NetCDFobj;
+
+my $ncobj = PDL::NetCDFobj->new ("test.nc");  # New file
+my $pdl = pdl [[1, 2, 3], [4, 5, 6]];
+
+# Specify variable name to put PDL in, plus names of the dimensions.  Dimension
+# lengths are taken from the PDL, in this case, dim1 = 2 and dim2 = 3.      
+$ncobj->put ('var1', ['dim1', 'dim2'], $pdl); 
+
+my $pdlout = $ncobj->get ('var1'); # $pdlout = [[1, 2, 3], [4, 5, 6]]
+
+my $dim1size = $ncobj->dimsize('dim1'); # $dim1size = 2
+
+# A slice of the netCDF variable.
+# [0,0] is the starting point, [1,2] is the count.
+my $slice  = $ncobj->get ('var1', [0,0], [1,2]); # $slice = [1,2]
+
+# Attach a double attribute of size 3 to var1
+$ncobj->putatt (double([1,2,3]), 'double_attribute', 'var1');
+
+my $attr1 = $ncobj->getatt ('double_attribute', 'var1'); # $attr1 = [1,2,3]
+
+# Write a textual, global attribute.  'attr_name' is the attribute name.
+$ncobj->putatt ('The text of the global attribute', 'attr_name');          
+
+my $attr2 = $ncobj->getatt ('attr_name'); 
+# $attr2 = 'The text of the global attribute'
+
+# Close the netCDF file.  The file is also automatically closed in a DESTROY block
+# when it passes out of scope.  This just makes is explicit.
+$ncobj->close;
+
+
+INSTALLATION:
+
+Once the above are installed, edit the Makefile.PL to add the
+lib and include paths for your machine's NetCDF installation:
+
+On my Sun Solaris machine, these are the correct values:
+
+$netcdf_lib_path     = '/opt/local/lib';
+$netcdf_include_path = '/opt/local/include';
+
+On many other UNIX flavors, the correct paths may be
+/usr/local/*
+
+Once this is done, do the normal perl extension thing:
+
+perl Makefile.PL
+make
+make test
+
+(as root)
+make install
+
+Best of luck!
+
+Doug Hunt
+dhunt@ucar.edu
+Software Engineer III
+UCAR - GPS/MET 
+

@@ -1,51 +1,16 @@
-Revision history for Perl extension PDL::NetCDF.
+Revision history for Perl extension PDL::NetCDFobj
 
-0.01  Thu Feb 27 13:23:19 1997
-	- original version; created by h2xs 1.16
+0.01  12/31/97
+	- original version
 
-0.1   3/5/97
-        - First working internal version
+0.03  11/30/98
+        - changed interface:  matrix slices indexed with [1,2,3], not long([1,2,3]), 
+	  i.e. perl array refs instead of PDLs of type long.
 
-0.3   3/11/97
-        - Now includes object oriented (read only) interface.
-        - Also, imports all constants as NC_FOO and all subroutines
-          as ncfoo.
+          This helps when on 64 bit platforms--PDL long is not necessarily
+	  the same size as the native long used by netCDF as indices (size_t).
 
-0.31  3/18/97
+          Ported to DEC alpha OSF 4.0
 
-Added new function typed_zeroes, which should be in PDL::Core.
-This function does what 'zeroes' does, but allows the user to specify
-the type of the PDL.  Before, I was using, for example, byte(zeroes(2,3))
-which results in lots of copying.  Using typed_zeroes ([2,3], $PDL_B) is much
-more efficient.
-
-Also, I no longer export the world; I just put it in export_OK.
-This means that in order to use the traditional interface, you must
-use PDL::NetCDF qw (/^NC_/ /^nc/);
-to get all names starting with NC_ and nc.
-
-Lastly, the object oriented interface now includes a function to
-get the size of a dimension, $dimsize = $ncobj->dimsize('dimname');
-
-
-0.32  3/25/97
-
-Fixed a nasty bug in ncvarget.  Before it had returned PDLs in class PDL::Core 
-instead of class PDL.  This meant that overloaded functions did not work on 
-these PDLs.  So, one could not say, for example:
-
-$ncobj = PDL::NetCDF->new('file.nc');
-$pdl1 = $ncobj->get('var1');
-$pdl2 = $ncobj->get('var1');
-$pdl3 = $pdl1 - $pdl2;
-
-$pdl3 would not have what you expected.
-
-I also fixed the single quote problem in Makefile.PL pointed out by
-Christian Soeller.
-
-0.40 10/7/97
-
-Changed to work with PDL v2.0 alpha (pdl v1.94_04).  Please use PDL::NetCDF v0.3x
-with pdl 1.11.
+	  Changed name to PDL::NetCDF
 

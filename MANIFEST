@@ -1,6 +1,8 @@
 Changes
 MANIFEST
 Makefile.PL
-NetCDF.pm
-NetCDF.xs
+netcdf.pd
 test.pl
+typemap
+README
+COPYRIGHT
