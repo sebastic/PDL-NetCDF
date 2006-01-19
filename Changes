@@ -43,3 +43,6 @@ Revision history for Perl extension PDL::NetCDFobj
 0.89  04/21/2004
         - Added support for 64 bit little endian machines such as IBM AIX 
           machines.  (Thanks to Jim Edwards).
+
+0.90  04/29/2005
+        - Added fix to properly handle get of zero length variable

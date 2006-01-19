@@ -568,7 +568,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.89';
+$VERSION = '0.91';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
@@ -1563,6 +1563,7 @@ pp_addpm (<<'EOPM');
     for ($i=0;$i<$ndims;$i++) {
       my $rc = PDL::NetCDF::nc_inq_dim ($self->{NCID}, $dimids->at($i), $name='x' x NC_MAX_NAME(), $size=-999);
       croak ("get:  Cannot get info on this dimension -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+      croak ("get:  Dimension must be positive") if ($size <= 0);  # Added to address zero length vars. D. Hunnt 4/29/2005
       push (@cnt, $size);
     }
 
@@ -1645,6 +1646,7 @@ pp_addpm (<<'EOPM');
   if (exists($self->{PDL_BAD})) {
     my $missing = eval { $self->getatt('_FillValue',   $varnm); };
     $missing = eval { $self->getatt('missing_value',   $varnm); } unless (defined($missing));
+    $missing = $missing->sclr if (ref($missing) =~ /PDL/); # Convert PDLs to scalars. D. Hunt 2005.10.23
     $pdl->inplace->setvaltobad($missing) if (defined($missing));
     print "In get(): missing = $missing, pdl[info, first, last] = ", $pdl->info, " ", $pdl->at(0), " ", $pdl->at($pdl->nelem-1), "\n" if ($self->{DEBUG});
   }
