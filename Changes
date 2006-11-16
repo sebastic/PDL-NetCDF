@@ -46,3 +46,8 @@ Revision history for Perl extension PDL::NetCDFobj
 
 0.90  04/29/2005
         - Added fix to properly handle get of zero length variable
+
+0.92  11/16/2006
+        - Updated test.pl to skip tests requiring BAD value support on machines
+          where PDL is not compiled with such support.
+          Now use Test::More in test.pl.
