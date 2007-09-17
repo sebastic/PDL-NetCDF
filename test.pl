@@ -152,7 +152,7 @@ open (IN, ">bogus.nc");
 print IN "I'm not a netCDF file\n";
 close IN;
 eval { $obj2 = PDL::NetCDF->new ('bogus.nc'); };
-ok ($@ =~ /Not a netCDF file/, "Read bogus file");
+ok ($@ =~ /(Not a netCDF file|Unknown file format)/, "Read bogus file");
 
 $obj = PDL::NetCDF->new ('foo1.nc');
 # test chars with unlimited dimension

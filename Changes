@@ -51,3 +51,6 @@ Revision history for Perl extension PDL::NetCDFobj
         - Updated test.pl to skip tests requiring BAD value support on machines
           where PDL is not compiled with such support.
           Now use Test::More in test.pl.
+
+0.93  07/27/2007
+        - Updated test.pl to handle new message from netcdf 3.6.2 for a bogus file

@@ -568,7 +568,7 @@ EOH
 
 pp_bless ("PDL::NetCDF");
 
-$VERSION = '0.92';
+$VERSION = '0.93';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
