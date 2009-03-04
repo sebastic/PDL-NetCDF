@@ -54,3 +54,8 @@ Revision history for Perl extension PDL::NetCDFobj
 
 0.93  07/27/2007
         - Updated test.pl to handle new message from netcdf 3.6.2 for a bogus file
+
+0.94  03/04/2009
+        - Changes contributed by Heiko Klein:  Fix bug in which the same file is closed
+          and then opened again.  Updated VERSION variable to make it available programatically.
+

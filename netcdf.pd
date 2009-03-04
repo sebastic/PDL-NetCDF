@@ -546,6 +546,10 @@ file. Talking PDL::NetCDF, this means the following:
 
 Doug Hunt, dhunt\@ucar.edu.
 
+=head2 CONTRIBUTORS
+
+Heiko Klein, heiko.klein\@met.no
+
 =head1 SEE ALSO
 
 perl(1), PDL(1), netcdf(3).
@@ -567,8 +571,6 @@ pp_addhdr(<<'EOH');
 EOH
 
 pp_bless ("PDL::NetCDF");
-
-$VERSION = '0.93';
 
 # Read in a modified netcdf.h file.  Define
 # a low-level perl interface to netCDF from these definitions.
@@ -761,6 +763,10 @@ EODEF
 #-------------------------------------------------------------------------
 
 pp_addpm (<<'EOPM');
+
+BEGIN { 
+$VERSION = '0.94' 
+};
 
 use Carp;
 use Fcntl; # importing constants O_CREAT,O_RDONLY,O_RDWR
@@ -1142,7 +1148,12 @@ sub new {
 # Explicitly close a netCDF file and free the object
 sub close {
   my $self = shift;
-  return PDL::NetCDF::nc_close ($self->{NCID});
+  my $retVal = 1;
+  if ($self->{NCID} != -999) {
+    $retVal = PDL::NetCDF::nc_close ($self->{NCID});
+	$self->{NCID} = -999;
+  }
+  return $retVal;
 }
 
 # Close a netCDF object when it passes out of scope

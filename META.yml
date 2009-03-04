@@ -1,11 +1,14 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         PDL-NetCDF
-version:      0.93
-version_from: netcdf.pd
-installdirs:  site
-requires:
+--- #YAML:1.0
+name:                PDL-NetCDF
+version:             0.94
+abstract:            ~
+license:             ~
+author:              
+    - Douglas Hunt (dhunt@ucar.edu)
+generated_by:        ExtUtils::MakeMaker version 6.42
+distribution_type:   module
+requires:     
     PDL:                           2.2
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.30
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3

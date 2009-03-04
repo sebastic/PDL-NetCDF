@@ -1,4 +1,4 @@
-use Test::More tests => 37;
+use Test::More tests => 38;
 BEGIN { use_ok('PDL') };
 BEGIN { use_ok('PDL::NetCDF') };
 BEGIN { use_ok('PDL::Char') };
@@ -167,6 +167,13 @@ $charout = $obj->get('char_unlim');
 $pdlchar = PDL::Char->new (['abc', 'defg', 'hijkl']);
 ok (sum($pdlchar - $charout) == 0, "chars with unlimited dimension");
 $obj->close;
+$obj = undef;
+
+$obj = PDL::NetCDF->new('foo.nc');
+$obj->close;
+$obj = PDL::NetCDF->new('foo.nc');
+$obj->getatt("text_attribute");
+ok(1, "close is idempotent");
 
 BEGIN {
   if(-e 'foo.nc'){

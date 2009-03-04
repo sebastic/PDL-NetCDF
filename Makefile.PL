@@ -33,7 +33,7 @@ foreach my $libdir (
 }
 
 die "Cannot find netcdf library, libnetcdf.so or libnetcdf.a.  
-Please add the correct library path to Makefile.PL or install NetCDF" 
+Please set the environment variable NETCDF_LIBDIR to the correct library path or install NetCDF" 
   unless defined ($netcdf_lib_path);
 
 foreach my $incdir (
@@ -54,7 +54,7 @@ foreach my $incdir (
 }
 
 die "Cannot find netcdf header file, netcdf.h.
-Please add the correct library path to Makefile.PL or install NetCDF" 
+Please set the environment variable NETCDF_INCDIR to the correct include path or install NetCDF" 
   unless defined ($netcdf_include_path);
 
 # Check if compiled under gcc/Linux.  In which case, define bool for the compiler
