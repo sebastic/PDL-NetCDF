@@ -1,4 +1,6 @@
-use Test::More tests => 38;
+use Test::More tests => 40;
+use warnings;
+use strict;
 BEGIN { use_ok('PDL') };
 BEGIN { use_ok('PDL::NetCDF') };
 BEGIN { use_ok('PDL::Char') };
@@ -8,10 +10,10 @@ BEGIN { use_ok('PDL::Char') };
 #
 
 # Test starting with new file
-$obj = PDL::NetCDF->new ('foo.nc');
-$in1 = pdl [[1,2,3], [4,5,6]];
+my $obj = PDL::NetCDF->new ('foo.nc');
+my $in1 = pdl [[1,2,3], [4,5,6]];
 $obj->put ('var1', ['dim1', 'dim2'], $in1);
-$out1 = $obj->get ('var1');
+my $out1 = $obj->get ('var1');
 
 my $str = "Station1  Station2  Station3  ";
 $obj->puttext('textvar', ['n_station', 'n_string'], [3,10], $str);
@@ -20,25 +22,25 @@ ok($str eq $outstr, "puttext 1");
 
 ok ( ($in1 == $out1)->sum == $in1->nelem, "puttext 2");
 
-$in3 = pdl 1;
+my $in3 = pdl 1;
 $obj->put ('zeroDim', [], $in3);
-$out3 = $obj->get ('zeroDim');
+my $out3 = $obj->get ('zeroDim');
 ok($in3 == $out3, "zeroDim");
 
-$dims  = pdl $in1->dims;
-$dims1 = pdl $out1->dims;
+my $dims  = pdl $in1->dims;
+my $dims1 = pdl $out1->dims;
 ok( ($dims == $dims1)->sum == $dims->nelem, "puttext 3");
 
-$in2 = pdl [[1,2,3,4], [5,6,7,8]]; # dim1 is already 3, not 4
+my $in2 = pdl [[1,2,3,4], [5,6,7,8]]; # dim1 is already 3, not 4
 eval { $obj->put ('var2', ['dim1', 'dim2'], $in2); }; # Dimension error
 ok ($@ =~ /Attempt to redefine length of dimension/, "Dimension redefinition error");
 
-$pdlchar = PDL::Char->new ([['abc', 'def', 'hij'],['aaa', 'bbb', 'ccc']]);
+my $pdlchar = PDL::Char->new ([['abc', 'def', 'hij'],['aaa', 'bbb', 'ccc']]);
 $obj->put ('varchar', ['dimc1', 'dimc2', 'dimc3'], $pdlchar);
-$charout = $obj->get('varchar');
+my $charout = $obj->get('varchar');
 ok(sum($pdlchar - $charout) == 0, "PDL::Char 1");
 
-$pdlchar1 = PDL::Char->new ("abcdefghiklm");
+my $pdlchar1 = PDL::Char->new ("abcdefghiklm");
 $obj->put ('varchar1', ['dimc4'], $pdlchar1);
 $charout = $obj->get('varchar1');
 ok(sum($pdlchar1 - $charout) == 0, "PDL::Char 2");
@@ -65,16 +67,16 @@ ok(grep(/^var1$/,@$varnames) + grep(/^textvar$/,@$varnames), "Fast open 1");
 ok(!$nc1->close, "Fast open 2");
 
 # Try rewriting an existing file
-$obj1 = PDL::NetCDF->new ('>foo.nc', {PERL_SCALAR => 1, PDL_BAD => 1});
-my $varnames = $obj1->getvariablenames;
+my $obj1 = PDL::NetCDF->new ('>foo.nc', {PERL_SCALAR => 1, PDL_BAD => 1});
+$varnames = $obj1->getvariablenames;
 ok(grep(/^var1$/,@$varnames) + grep(/^textvar$/,@$varnames), "Re-writing 1");
 
 my $dimnames = $obj1->getdimensionnames;
 ok (grep(/^dim1$/,@$dimnames) + grep(/^dim2$/,@$dimnames) + grep(/^n_string$/,@$dimnames) + grep(/^n_station$/,@$dimnames), "Re-writing 2");
 
-$pdl = pdl [[1,2,3], [4,5,6]];
+my $pdl = pdl [[1,2,3], [4,5,6]];
 $obj1->put ('var1', ['dim1', 'dim2'], $pdl);
-$pdl1 = $obj1->get ('var1');
+my $pdl1 = $obj1->get ('var1');
 
 ok(($pdl1 == $pdl)->sum == $pdl->nelem, "2D put/get 1");
 
@@ -82,16 +84,16 @@ $dims  = pdl $pdl->dims;
 $dims1 = pdl $pdl1->dims;
 ok(($dims == $dims1)->sum == $dims->nelem, "2D put/get 2");
 
-$attin = pdl [1,2,3];
+my $attin = pdl [1,2,3];
 ok(!$obj1->putatt ($attin, 'double_attribute', 'var1'), "Putatt 1");
 
-$attin2 = long [4,5];
+my $attin2 = long [4,5];
 ok(!$obj1->putatt ($attin2, 'long_attribute', 'var1'), "Putatt 2");
 
-$attin3 = long [4];
+my $attin3 = long [4];
 ok (!$obj1->putatt ($attin3, 'long_attribute1', 'var1'), "Putatt 3");
 
-$attout = $obj1->getatt ('long_attribute1', 'var1');
+my $attout = $obj1->getatt ('long_attribute1', 'var1');
 ok ( (!ref($attout) and $attout == 4), "Getatt 1");
 
 $attout = $obj1->getatt ('double_attribute', 'var1');
@@ -119,9 +121,9 @@ $attout = $obj1->getatt ('text_attribute');
 #
 # First slice needs dimids and values to define variable, subsequent slices do not.
 #
-$out2 = $obj1->putslice('var2', ['dim1','dim2','dim3'],[2,3,2],[0,0,0],[2,3,1],$pdl1);
+my $out2 = $obj1->putslice('var2', ['dim1','dim2','dim3'],[2,3,2],[0,0,0],[2,3,1],$pdl1);
 
-$pdl2 = pdl [[7,8,9], [10,11,12]];
+my $pdl2 = pdl [[7,8,9], [10,11,12]];
 ok (! $obj1->putslice('var2',[] ,[] ,[0,0,1],[2,3,1],$pdl2), "Putslice 1");
 
 $pdlchar = PDL::Char->new (['a  ','def','ghi']);
@@ -130,7 +132,7 @@ ok ( ! $obj1->putslice('tvar', ['recNum','strlen'],[PDL::NetCDF::NC_UNLIMITED(),
 $pdlchar = PDL::Char->new (['zzzz']);
 ok (! $obj1->putslice('tvar',[],[],[5,0],[1,4],$pdlchar), "Putslice PDL::Char 2");
 
-$svar = short(27);
+my $svar = short(27);
 ok (! $obj1->putslice('svar', ['recNum'],[PDL::NetCDF::NC_UNLIMITED()],[0],[1],$svar), 
     "Putslice short 1");
 
@@ -147,16 +149,24 @@ ok (($out2 == pdl[2,5])->sum == $out2->nelem, "Get slice 2");
 $out2 = $obj1->get ('var1', [0,1], [1,1]);
 ok ( ($out2 == 2), "Get slice 3");
 
+# Test shuffle and deflate = 0
+my ($deflate, $shuffle) = $obj1->getDeflateShuffle('var1');
+is($deflate, 0, 'uncompressed variable');
+is($shuffle, 0, 'unshuffled variable');
+
+
 # Test with a bogus file
 open (IN, ">bogus.nc");
 print IN "I'm not a netCDF file\n";
 close IN;
+my $obj2;
 eval { $obj2 = PDL::NetCDF->new ('bogus.nc'); };
 ok ($@ =~ /(Not a netCDF file|Unknown file format)/, "Read bogus file");
 
 $obj = PDL::NetCDF->new ('foo1.nc');
 # test chars with unlimited dimension
 my $strlen = 5;
+my $id = 0;
 for ('abc', 'defg', 'hijkl') {
   my $str = PDL::Char->new([substr($_, 0, $strlen)]);
   $obj->putslice('char_unlim', ['unlimd','strlen'], [PDL::NetCDF::NC_UNLIMITED(), $strlen],
@@ -184,6 +194,8 @@ BEGIN {
 }
 END {
   print "Removing test file bogus.nc\n";
-  unlink "bogus.nc"; 
+  unlink "bogus.nc";
+  unlink "foo.nc" if -f "foo.nc";
+  unlink "foo1.nc" if -f "foo1.nc"; 
 }
 

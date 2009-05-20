@@ -1,3 +1,4 @@
+# -*- Perl -*-
 use Config;
 
 pp_addpm({At => Top}, <<'EOD');
@@ -19,7 +20,12 @@ binary gridded files via PDL objects.
 
   # Specify variable name to put PDL in, plus names of the dimensions.  Dimension         
   # lengths are taken from the PDL, in this case, dim1 = 2 and dim2 = 3.      
-  $ncobj->put ('var1', ['dim1', 'dim2'], $pdl);                                               
+  $ncobj->put ('var1', ['dim1', 'dim2'], $pdl);
+  # or for netcdf4 files
+  # $ncobj->put ('var1', ['dim1', 'dim2'], $pdl, {DEFLATE => 9});  
+
+  # get the deflate level (for any fileformat)
+  my ($deflate, $shuffle) = $ncobj->getDeflateShuffle('var1');
 
   # $pdlout = [[1, 2, 3], [4, 5, 6]]
   my $pdlout = $ncobj->get ('var1');
@@ -92,6 +98,38 @@ netCDF file.
 
 =head1 FUNCTIONS
 
+=head2 isNetcdf4
+
+=for ref
+
+Check if compiled against netcdf4
+
+=for usage
+
+Arguments: none
+
+=for example
+
+  if (PDL::NetCDF::isNetcdf4) {
+  	# open netcdf4 file
+  }
+
+=head2 defaultFormat
+
+=for ref
+
+Get or change the default format when creating a netcdf-file.
+This can be overwritten by the NC_FORMAT option for new. Possible
+values are: PDL::NetCDF::NC_FORMAT_CLASSIC, PDL::NetCDF::NC_FORMAT_64BIT,
+PDL::NetCDF::NC_FORMAT_NETCDF4, PDL::NetCDF::NC_FORMAT_NETCDF4_CLASSIC 
+
+=for usage
+
+ Arguments:
+ 1) new format (constant)
+ Return:
+ old format as one of the NC_FORMAT_* constants
+
 =head2 new
 
 =for ref
@@ -124,6 +162,8 @@ Create an object representing a netCDF file.
     netcdf-programs (ncview, NCL) or if you are planning to combine
     putslice and slice.  You should _not_ use this option, if you need
     compatibility to older versions of PDL::NetCDF.
+    NC_FORMAT:
+    set the file format for a new netcdf file, see defaultFormat()
 
 Example:
 
@@ -138,7 +178,7 @@ Example:
   use Fcntl; # define O_CREAT...
   # opening a completely new file (deleting if it exists!)
   my $newnc = PDL::NetCDF->new ("file2.nc", {MODE => O_CREAT|O_RDWR,
-					     REVERSE_DIMS => 1});
+					     REVERSE_DIMS => 1, NC_FORMAT => PDL::NetCDF::NC_FORMAT_NETCDF4});
   # opening existing file for reading and writing
   $nc = PDL::NetCDF->new ("file2.nc", {MODE => O_RDWR}
 			REVERSE_DIMS => 1});
@@ -153,6 +193,20 @@ Returns:  The netCDF object.  Barfs if there is an error.
 
 =for example
   $ncobj = PDL::NetCDF->new ("file.nc",{REVERSE_DIMS => 1});
+
+=head2 getFormat
+
+=for ref
+
+Get the format of a netcdf file
+
+=for usage
+
+Arguments: none
+
+Returns: 
+@ integer equal to one of the PDL::NetCDF::NC_FORMAT_* constants.
+
 
 =head2 put        
 
@@ -170,6 +224,8 @@ Arguments:
 
 3) The PDL to put.  It must have the same number of dimensions
 as specified in the dimension name list.
+
+4) Optional options hashref: {SHUFFLE => 1, DEFLATE => 7, COMPRESS => 0}
 
 Returns:
 None.
@@ -213,6 +269,11 @@ Arguments:
 6) The PDL to put.  It must conform to the size specified by the 4th and 5th
    arguments.  The 2nd and 3rd argument are optional if the variable is already
    defined in the netcdf object. 
+
+7) Optional options: {DEFLATE => 7, SHUFFLE => 0/1} will use gzip compression (level 7)
+   on that variable and shuffle will not/will use the shuffle filter. These options are
+   only valid for netcdf4 files. If you are unsure, test with 
+   ($nc->getFormat >= PDL::NetCDF::NC_FORMAT::NC_FORMAT_NETCDF4)  
 
 Returns:
 None.
@@ -337,6 +398,27 @@ the input name.
   # Get an attribute associated with the varibale 'var1'
   my $attr1 = $ncobj->getatt ('double_attribute', 'var1');
 
+=head2 getDeflateShuffle
+
+=for ref
+
+Get the deflate level and the shuffle flag for a variable.
+
+=for usage
+
+Can be called on all files, although only netcdf4 files support shuffle and deflate.
+
+Arguments:
+
+1) The name of the variable.
+
+Returns:
+
+($deflate, $shuffle) 
+
+=for example
+
+  my ($deflate, $shuffle) = $nc->getDeflateShuffle('varName');
 
 =head2 getvariabletype
 
@@ -377,6 +459,8 @@ Arguments:
 
 4) A perl string to put into the netCDF array.  If the NetCDF array is 3 x 10, then the string must
    have 30 charactars.  
+
+5) Optional nc4 options: {DEFLATE => 7, SHUFFLE => 0}
 
 =for example
 
@@ -648,6 +732,7 @@ create_low_level (<<'EODEF');
 int nc_create(const char *path, int cmode, int *ncidp);
 int nc_open(const char *path, int mode, int *ncidp);
 int nc_set_fill(int ncid, int fillmode, int *old_modep);
+int nc_set_default_format(int format, int *old_formatp);
 int nc_redef(int ncid);
 int nc_enddef(int ncid);
 int nc_sync(int ncid);
@@ -658,6 +743,7 @@ int nc_inq_ndims(int ncid, int *ndimsp);
 int nc_inq_nvars(int ncid, int *nvarsp);
 int nc_inq_natts(int ncid, int *nattsp);
 int nc_inq_unlimdim(int ncid, int *unlimdimidp);
+int nc_inq_format(int ncid, int* formatp);
 
 # /* Begin _dim */
 
@@ -759,13 +845,45 @@ int nc_get_var_double(int ncid, int varid, PDLdouble *ip);
 EODEF
 
 #-------------------------------------------------------------------------
+# new functions only available in netcdf4
+#-------------------------------------------------------------------------
+pp_addxs('', "#ifdef NC_NETCDF4\n");
+create_low_level(<<'EODEF');
+int nc_def_var_deflate(int ncid, int varid, int shuffle, int deflate, int deflate_level);
+int nc_inq_var_deflate(int ncid, int varid, int *shufflep, int *deflatp, int *deflate_levelp);
+EODEF
+pp_addxs('', "#endif /* NC_NETCDF4 */\n");
+pp_addxs('', <<'EOXS');
+MODULE = PDL::NetCDF PACKAGE = PDL::NetCDF
+
+
+MODULE = PDL::NetCDF PACKAGE = PDL::NetCDF
+
+int
+isNetcdf4 ()
+CODE:
+    {
+#ifdef NC_NETCDF4
+	RETVAL = 1;
+#else
+    RETVAL = 0;
+#endif
+    }
+OUTPUT:
+    RETVAL
+
+
+EOXS
+
+
+#-------------------------------------------------------------------------
 # Perl portion of the interface (put by PP into the .pm file)
 #-------------------------------------------------------------------------
 
 pp_addpm (<<'EOPM');
 
 BEGIN { 
-$VERSION = '0.94' 
+$VERSION = '4.01' 
 };
 
 use Carp;
@@ -788,6 +906,11 @@ sub NC_FILL_SHORT () { return -32767; }
 sub NC_FILL_INT () { return -2147483647; }
 sub NC_FILL_FLOAT () { return 9.9692099683868690e+36; } # near 15 * 2^119 
 sub NC_FILL_DOUBLE () { return 9.9692099683868690e+36; }
+
+sub NC_FORMAT_CLASSIC () { return 1; }
+sub NC_FORMAT_64BIT () { return 2; }
+sub NC_FORMAT_NETCDF4 () { return 3; }
+sub NC_FORMAT_NETCDF4_CLASSIC () { return 4; }
 
 sub NC_CLOBBER () { return 0; }
 sub NC_NOWRITE () { return 0; }
@@ -949,8 +1072,28 @@ my %legalopts = (
                  TEMPLATE     => 1,   # initialize this nc object with contents of a previous object
                  PERL_SCALAR  => 1,   # return single element PDLs as perl scalars
                  PDL_BAD      => 1,   # return missing values as PDL bad values
-	         DEBUG        => 1,
+                 NC_FORMAT    => 1,   # choose the files format for new files, NC_FORMAT_*, see also defaultFormat
+	             DEBUG        => 1,
                 );	
+
+# get/set the format of PDL::NetCDF
+sub defaultFormat {
+	my ($format) = @_;
+	my $oldFormat;
+	if (defined $format) {
+		my $rc = PDL::NetCDF::nc_set_default_format($format, $oldFormat=-999);
+		croak ("Cannot change default format -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+	} else {
+		my $rc = PDL::NetCDF::nc_set_default_format(NC_FORMAT_CLASSIC(), $oldFormat=-999);
+		croak ("Cannot get default format -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+		if ($rc == NC_NOERR) {
+			my $temp;
+			$rc = PDL::NetCDF::nc_set_default_format($oldFormat, $temp=-999);
+			croak ("Cannot get default format -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+		}
+	}
+	return $oldFormat;
+}
 
 # This routine hooks up an object to a NetCDF file.
 sub new {
@@ -1126,8 +1269,10 @@ sub new {
     $self->{DEFINE} = 0;
     
   } else { # new file
-    
+    my $oldFormat;
+    defaultFormat($opt->{NC_FORMAT}, $oldFormat) if ($opt->{NC_FORMAT});
     $rc = PDL::NetCDF::nc_create ($file, NC_CLOBBER(), $self->{NCID}=-999);
+    defaultFormat($oldFormat, my $tmp) if ($opt->{NC_FORMAT});
     croak ("new:  Cannot create netCDF file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;	
     
     # Specify that this file is now in define mode
@@ -1143,6 +1288,15 @@ sub new {
 
   bless $self, $type;
   return $self;
+}
+
+# Get the format of the file
+sub getFormat {
+	my ($self) = @_;
+	my $format;
+	my $rc = nc_inq_format($self->{NCID}, $format=-999);
+	croak("Cannot get format -- " . PDL::NetCDF::nc_strerror($rc)) if $rc;
+	return $format;
 }
 
 # Explicitly close a netCDF file and free the object
@@ -1162,6 +1316,18 @@ sub DESTROY {
   # print "Destroying $self\n";
   $self->close;
 }
+
+# Get deflate and shuffle level of a variable
+sub getDeflateShuffle {
+    my ($self, $varnm) = @_;
+    return (0,0) if ($self->getFormat < PDL::NetCDF::NC_FORMAT_NETCDF4);
+    croak ("getDeflateShuffle: undefined varname $varname") unless exists $self->{VARIDS}{$varnm};
+    my ($deflate, $isDeflate, $shuffel);
+    my $rc = nc_inq_var_deflate($self->{NCID}, $self->{VARIDS}{$varnm}, $shuffle=-999, $isDeflate=-999, $deflate=-999);
+    croak ("getDeflateShuffle: ncerror on $varname -- ".nc_strerror($rc)) if $rc;
+    return ($deflate, $shuffle);	
+}
+
 
 # Get the names and order of dimensions in a variable, otherwise
 # get the names of all dimensions
@@ -1236,6 +1402,10 @@ sub put {
   my $dims  = shift;  # set of dimensions, i.e. ['dim1', 'dim2']
   my $pdl   = shift;  # PDL to put
   my $opt   = shift || {};
+  my $compress = delete $opt->{COMPRESS} || 0;
+  my $deflate = delete $opt->{DEFLATE} || 0;
+  my $shuffle = delete $opt->{SHUFFLE} || 0;
+  croak ("Unknown options to put: ". join(",", keys %{$opt})) if (keys %{$opt});
   
   if ($self->{REVERSE_DIMS}) {
       $dims = [ reverse @$dims ];
@@ -1288,12 +1458,17 @@ sub put {
       $datatype = NC_CHAR();
     } else {
       $pdltype  = $pdl->get_datatype;
-      $pdltype  = $compressionMap{$pdltype} if ($opt->{COMPRESS});
+      $pdltype  = $compressionMap{$pdltype} if ($compress);
       $datatype = $typemap3{$pdltype};
     }
     my $rc = PDL::NetCDF::nc_def_var ($self->{NCID}, $varnm, $datatype, 
 			   scalar(@dimlens), $dimids, $self->{VARIDS}{$varnm}=-999);
     croak ("put:  Cannot define variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+    if ($deflate || $shuffle) {
+        my $doDeflate = $deflate > 0 ? 1 : 0;
+        my $rc = PDL::NetCDF::nc_def_var_deflate($self->{NCID}, $self->{VARIDS}{$varnm}, $shuffle, $doDeflate, $deflate);
+        croak ("put: Cannot shuffle/deflate variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+    }
 
     $self->{DATATYPES}{$varnm} = $datatype;
 
@@ -1317,7 +1492,7 @@ sub put {
     #
     ## compute a compressed PDL to put if compression is requested
     #
-    if ($opt->{COMPRESS}) {
+    if ($compress) {
 
       my $var = $pdl->copy;
       my ($min, $max) = $var->minmax;
@@ -1382,6 +1557,11 @@ sub putslice {
   my $count = shift;  # ref to perl array containing count along each dimension
   
   my $pdl   = shift;  # PDL to put
+  my $opt = shift || {}; # options for deflate/shuffle
+  my $deflate = delete $opt->{DEFLATE} || 0;
+  my $shuffle = delete $opt->{SHUFFLE} || 0;
+  croak ("Unknown options to putslice: ". join(",", keys %{$opt})) if (keys %{$opt});
+  
   
   if ($self->{REVERSE_DIMS}) {
       $dims = [ reverse @$dims ];
@@ -1440,7 +1620,11 @@ sub putslice {
     my $rc = PDL::NetCDF::nc_def_var ($self->{NCID}, $varnm, $datatype, 
 			   scalar(@dimlens), $dimids, $self->{VARIDS}{$varnm}=-999);
     croak ("put:  Cannot define variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
-
+    if ($deflate || $shuffle) {
+    	my $doDeflate = $deflate > 0 ? 1 : 0;
+    	my $rc = PDL::NetCDF::nc_def_var_deflate($self->{NCID}, $self->{VARIDS}{$varnm}, $shuffle, $doDeflate, $deflate);
+    	croak ("put: Cannot shuffle/deflate variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+    }
     $self->{DATATYPES}{$varnm} = $datatype;
 
   }
@@ -1588,7 +1772,7 @@ pp_addpm (<<'EOPM');
 
       # If the first dim is the unlimited dim, this PDL needs to be read in slices
       # by unlimited dimension.  D. Hunt 1/17/2003
-      if ($self->{UNLIMID} == $dimids->at(0)) {
+      if (defined $self->{UNLIMID} && $self->{UNLIMID} == $dimids->at(0)) {
         for (my $j=0;$j<$cnt[0];$j++) {
           my $t = ' ' x ($pdl->nelem/$cnt[0]);
           my $start = [$j,map { 0 } @cnt[1..$#cnt]];
@@ -1836,6 +2020,10 @@ sub puttext {
   my $dims    = shift;
   my $dimlens = shift;  # Length of dimensions
   my $str     = shift;  # Perl string with data
+  my $opt = shift || {}; # options for deflate/shuffle
+  my $deflate = delete $opt->{DEFLATE} || 0;
+  my $shuffle = delete $opt->{SHUFFLE} || 0;
+  croak ("Unknown options to puttext: ". join(",", keys %{$opt})) if (keys %{$opt});
   
   my $ndims = scalar(@$dimlens);
 
@@ -1880,7 +2068,12 @@ sub puttext {
     my $rc = PDL::NetCDF::nc_def_var ($self->{NCID}, $varnm, $datatype, 
 			   $ndims, $dimids, $self->{VARIDS}{$varnm}=-999);
     croak ("put:  Cannot define variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
-
+    if ($deflate || $shuffle) {
+        my $doDeflate = $deflate > 0 ? 1 : 0;
+        my $rc = PDL::NetCDF::nc_def_var_deflate($self->{NCID}, $self->{VARIDS}{$varnm}, $shuffle, $doDeflate, $deflate);
+        croak ("put: Cannot shuffle/deflate variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
+    }
+    
     $self->{DATATYPES}{$varnm} = $datatype;
 
   }

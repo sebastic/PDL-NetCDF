@@ -76,7 +76,7 @@ WriteMakefile(
 	      'OBJECT'       => 'NetCDF.o ',
 	      'PM'           => { 'NetCDF.pm' => '$(INST_LIBDIR)/NetCDF.pm'},
 	      'INC'          => &PDL_INCLUDE()." -I$netcdf_include_path", 
-	      'LIBS'         => ["-L$netcdf_lib_path -lnetcdf "],  
+	      'LIBS'         => ["-L$netcdf_lib_path -lnetcdf $ENV{NETCDF_EXTRALIBS}"],  
 	      'clean'        => {'FILES'  => 
 				   'NetCDF.pm NetCDF.xs NetCDF.o NetCDF.c'},
 	      'dist'         => { COMPRESS => 'gzip', SUFFIX => 'gz' },	
