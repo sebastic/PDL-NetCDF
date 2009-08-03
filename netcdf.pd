@@ -48,7 +48,7 @@ binary gridded files via PDL objects.
 
   # $dim1size = 2
   my $dim1size = $ncobj->dimsize('dim1');
-
+addpm
   # A slice of the netCDF variable.
   # [0,0] is the starting point, [1,2] is the count.
   # $slice = [1,2]
@@ -883,7 +883,7 @@ EOXS
 pp_addpm (<<'EOPM');
 
 BEGIN { 
-$VERSION = '4.01' 
+$VERSION = '4.02' 
 };
 
 use Carp;
@@ -1732,14 +1732,52 @@ pp_addpm (<<'EOPM');
 
     # Get the data
     if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
-      my $f = ${$pdl->get_dataref};
-      $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $f);
-      ${$pdl->get_dataref} = $f;	
-      $pdl->upd_data();
+
+      # Determine the type of this variable.  We need this info to test if the first
+      # dimension is unlimited.  D. Hunt 8/3/2009
+      $rc = PDL::NetCDF::nc_inq_varndims ($self->{NCID}, $self->{VARIDS}{$varnm}, my $ndims=-999);
+      croak ("get:  Cannot get number of variables -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    	
+      my $dimids = ($ndims > 0) ? zeroes (PDL::long, $ndims) : pdl [];
+      $rc = PDL::NetCDF::nc_inq_vardimid ($self->{NCID}, $self->{VARIDS}{$varnm}, $dimids);
+      croak ("get:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+
+      # If the first dim is the unlimited dim, this PDL needs to be read in slices
+      # by unlimited dimension.  D. Hunt 8/3/2009
+      if (defined $self->{UNLIMID} && $self->{UNLIMID} == $dimids->at(0)) {
+
+        for (my $j=0;$j<$cnt[0];$j++) {
+          my $t = ' ' x ($pdl->nelem/$cnt[0]);
+          my $start = [$j,map { 0 } @cnt[1..$#cnt]];
+	  my $count = [1,@cnt[1..$#cnt]];
+EOPM
+#------------------------------------------------------------------------------------------------------
+# Add these statements for machines w/64 bit longs    
+if ($Config{'longsize'} == 8) { pp_addpm ('
+    my $st = pack ("Q*", @$start);
+    my $ct = pack ("Q*", @$count);
+');
+} else { pp_addpm ('
+    my $st = pack ("L*", @$start);
+    my $ct = pack ("L*", @$count);
+'); }
+#------------------------------------------------------------------------------------------------------
+
+pp_addpm (<<'EOPM');
+          $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $t);
+          $pdl->setstr($j, $t);
+        }
+
+      } else { # first dim not the unlimited dimension
+        my $f = ${$pdl->get_dataref};
+        $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $f);
+        ${$pdl->get_dataref} = $f;
+        $pdl->upd_data();
+      }
+
     } else {
       $rc = &{$typemap7{$pdl->get_datatype}}($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $pdl);
     }
-    croak ("get:  Cannot get data -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+    croak ("get:  Cannot get data -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
 
   } else { # get whole netCDF matrix
 

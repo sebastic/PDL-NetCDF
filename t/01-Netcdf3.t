@@ -1,4 +1,4 @@
-use Test::More tests => 40;
+use Test::More tests => 41;
 use warnings;
 use strict;
 BEGIN { use_ok('PDL') };
@@ -176,6 +176,10 @@ for ('abc', 'defg', 'hijkl') {
 $charout = $obj->get('char_unlim');
 $pdlchar = PDL::Char->new (['abc', 'defg', 'hijkl']);
 ok (sum($pdlchar - $charout) == 0, "chars with unlimited dimension");
+
+my $charout1 = $obj->get('char_unlim', [0,0], [3, $strlen]);
+ok (sum($pdlchar - $charout1) == 0, "Getting a slice of a PDL::Char with unlimited dimension");
+
 $obj->close;
 $obj = undef;
 

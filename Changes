@@ -59,3 +59,10 @@ Revision history for Perl extension PDL::NetCDFobj
         - Changes contributed by Heiko Klein:  Fix bug in which the same file is closed
           and then opened again.  Updated VERSION variable to make it available programatically.
 
+
+4.01  7/2009
+        - Incorporated Changes by Heiko Klein: added netCDF 4 support
+
+4.02  8/3/2009
+        - Fix bug found by Brice Lambi.  Add ability to read PDL::Char by slice when
+          first dimension is unlimited.
