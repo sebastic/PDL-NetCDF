@@ -2,7 +2,7 @@
 use Config;
 
 pp_addpm({At => Top}, <<'EOD');
-=head1 NAME 
+=head1 NAME
 
 PDL::NetCDF - Object-oriented interface between NetCDF files and PDL objects.
 
@@ -208,7 +208,7 @@ Returns:
 @ integer equal to one of the PDL::NetCDF::NC_FORMAT_* constants.
 
 
-=head2 put        
+=head2 put
 
 =for ref
 
@@ -883,7 +883,7 @@ EOXS
 pp_addpm (<<'EOPM');
 
 BEGIN { 
-$VERSION = '4.02' 
+$VERSION = '4.03'
 };
 
 use Carp;

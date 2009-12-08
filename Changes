@@ -66,3 +66,6 @@ Revision history for Perl extension PDL::NetCDFobj
 4.02  8/3/2009
         - Fix bug found by Brice Lambi.  Add ability to read PDL::Char by slice when
           first dimension is unlimited.
+
+4.03  12/07/2009
+         - Fixed documentation bugs
