@@ -69,3 +69,10 @@ Revision history for Perl extension PDL::NetCDFobj
 
 4.03  12/07/2009
          - Fixed documentation bugs
+
+4.04  15/06/2010
+         - Changes by Heiko Klein:
+		   - Fix bug when reading one line (slice) of string when first
+		     dimension is unlimited
+	       - Enabling PDL::NetCDF to write variables without dimensions,
+		     e.g. projection-attribute variables in CF-1.x convention

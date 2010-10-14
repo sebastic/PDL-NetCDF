@@ -1,4 +1,4 @@
-use Test::More tests => 41;
+use Test::More tests => 44;
 use warnings;
 use strict;
 BEGIN { use_ok('PDL') };
@@ -179,8 +179,20 @@ ok (sum($pdlchar - $charout) == 0, "chars with unlimited dimension");
 
 my $charout1 = $obj->get('char_unlim', [0,0], [3, $strlen]);
 ok (sum($pdlchar - $charout1) == 0, "Getting a slice of a PDL::Char with unlimited dimension");
+my $charout2 = $obj->get('char_unlim', [0,0], [1, $strlen]);
+ok (($charout2->dims)[0] == $strlen, "Getting exactly one string from nc with unlimited dimension");
 
 $obj->close;
+unlink 'foo1.nc';
+
+$obj = PDL::NetCDF->new ('>foo1.nc');
+my $nullPdl = new PDL::Char("");
+$obj->put('dimless_var', [],$nullPdl);
+ok(${ $obj->getvariablenames }[0] eq 'dimless_var', 'adding dimless char variable');
+$obj->put('dimless_var2', [], pdl [3]);
+ok(scalar @{ $obj->getvariablenames } == 2, 'adding dimless double variable');
+$obj->close;
+
 $obj = undef;
 
 $obj = PDL::NetCDF->new('foo.nc');
