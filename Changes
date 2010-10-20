@@ -76,3 +76,8 @@ Revision history for Perl extension PDL::NetCDFobj
 		     dimension is unlimited
 	       - Enabling PDL::NetCDF to write variables without dimensions,
 		     e.g. projection-attribute variables in CF-1.x convention
+
+4.05  19/10/2010
+         - Added SLOW_CHAR_FETCH option to 'new'.  This makes a get of a PDL::Char
+           loop over all entries instead of doing one nc_get_var_text.  This is 
+           necessary if the character array contains embedded NULLs.

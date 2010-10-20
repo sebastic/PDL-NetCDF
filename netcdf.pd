@@ -164,6 +164,13 @@ Create an object representing a netCDF file.
     compatibility to older versions of PDL::NetCDF.
     NC_FORMAT:
     set the file format for a new netcdf file, see defaultFormat()
+    SLOW_CHAR_FETCH:
+    If this option is set, then a 'get' into a PDL::Char will be done
+    one string at a time instead of all text data at once.  This
+    is necessary if there are NULLs (hex 0) values embedded in the string
+    arrays.  This takes longer, but gives the correct results.  If
+    the fetch of a string array yields only the first element, try setting
+    this option.
 
 Example:
 
@@ -883,7 +890,7 @@ EOXS
 pp_addpm (<<'EOPM');
 
 BEGIN { 
-$VERSION = '4.04'
+$VERSION = '4.05'
 };
 
 use Carp;
@@ -1073,7 +1080,8 @@ my %legalopts = (
                  PERL_SCALAR  => 1,   # return single element PDLs as perl scalars
                  PDL_BAD      => 1,   # return missing values as PDL bad values
                  NC_FORMAT    => 1,   # choose the files format for new files, NC_FORMAT_*, see also defaultFormat
-	             DEBUG        => 1,
+                 SLOW_CHAR_FETCH => 1, # read individual PDL::Char values in a loop instead of at once
+                 DEBUG        => 1,
                 );	
 
 # get/set the format of PDL::NetCDF
@@ -1744,7 +1752,7 @@ pp_addpm (<<'EOPM');
 
       # If the first dim is the unlimited dim, this PDL needs to be read in slices
       # by unlimited dimension.  D. Hunt 8/3/2009
-      if (defined $self->{UNLIMID} && $self->{UNLIMID} == $dimids->at(0)) {
+      if ($self->{SLOW_CHAR_FETCH} || (defined $self->{UNLIMID} && $self->{UNLIMID} == $dimids->at(0))) {
         my @ncCount = @$count;
         for (my $j=0;$j<$ncCount[0];$j++) {
           my $t = ' ' x ($pdl->nelem/$ncCount[0]);
@@ -1811,7 +1819,7 @@ pp_addpm (<<'EOPM');
 
       # If the first dim is the unlimited dim, this PDL needs to be read in slices
       # by unlimited dimension.  D. Hunt 1/17/2003
-      if (defined $self->{UNLIMID} && $self->{UNLIMID} == $dimids->at(0)) {
+      if ($self->{SLOW_CHAR_FETCH} || (defined $self->{UNLIMID} && $self->{UNLIMID} == $dimids->at(0))) {
         for (my $j=0;$j<$cnt[0];$j++) {
           my $t = ' ' x ($pdl->nelem/$cnt[0]);
           my $start = [$j,map { 0 } @cnt[1..$#cnt]];
