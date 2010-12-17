@@ -890,7 +890,7 @@ EOXS
 pp_addpm (<<'EOPM');
 
 BEGIN { 
-$VERSION = '4.05'
+$VERSION = '4.06'
 };
 
 use Carp;
@@ -1654,7 +1654,7 @@ EOPM
 
 #------------------------------------------------------------------------------------------------------
 # Add these statements for machines w/64 bit longs    
-if ($Config{'longsize'} == 8) { pp_addpm ('
+if ($Config{'ivsize'} == 8) { pp_addpm ('
     my $st = pack ("Q*", @$start);
     my $ct = pack ("Q*", @$count);
 ');
@@ -1727,7 +1727,7 @@ EOPM
 
 #------------------------------------------------------------------------------------------------------
 # Add these statements for machines w/64 bit longs    
-if ($Config{'longsize'} == 8) { pp_addpm ('
+if ($Config{'ivsize'} == 8) { pp_addpm ('
     my $st = pack ("Q*", @$start);
     my $ct = pack ("Q*", @$count);
 ');
@@ -1761,7 +1761,7 @@ pp_addpm (<<'EOPM');
 EOPM
 #------------------------------------------------------------------------------------------------------
 # Add these statements for machines w/64 bit longs    
-if ($Config{'longsize'} == 8) { pp_addpm ('
+if ($Config{'ivsize'} == 8) { pp_addpm ('
     my $st = pack ("Q*", @$start);
     my $ct = pack ("Q*", @$slice_count);
 ');
@@ -1829,7 +1829,7 @@ EOPM
 
 #------------------------------------------------------------------------------------------------------
 # Add these statements for machines w/64 bit longs
-if ($Config{'longsize'} == 8) { pp_addpm ('
+if ($Config{'ivsize'} == 8) { pp_addpm ('
     my $st = pack ("Q*", @$start);
     my $ct = pack ("Q*", @$count);
 ');
@@ -2137,7 +2137,7 @@ EOPM
 
 #------------------------------------------------------------------------------------------------------
 # Add these statements for machines w/64 bit longs    
-if ($Config{'longsize'} == 8) { pp_addpm ('
+if ($Config{'ivsize'} == 8) { pp_addpm ('
     my $st = pack ("Q*", ((0) x $ndims));
     my $ct = pack ("Q*", @$dimlens);
 ');
@@ -2199,7 +2199,7 @@ EOPM
 
 #------------------------------------------------------------------------------------------------------
 # Add these statements for machines w/64 bit longs    
-if ($Config{'longsize'} == 8) { pp_addpm ('
+if ($Config{'ivsize'} == 8) { pp_addpm ('
     my $st = pack ("Q*", ((0) x $ndims));
     my $ct = pack ("Q*", @dims);
 ');

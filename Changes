@@ -81,3 +81,8 @@ Revision history for Perl extension PDL::NetCDFobj
          - Added SLOW_CHAR_FETCH option to 'new'.  This makes a get of a PDL::Char
            loop over all entries instead of doing one nc_get_var_text.  This is 
            necessary if the character array contains embedded NULLs.
+
+4.06  17/12/2010
+         - Added patch from Sisyphus to help this to work on Windows.
+           Now test $Config{'ivsize'} instead of $Config{'longsize'}
+	   when determining size of offset and count vectors.
