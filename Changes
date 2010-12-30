@@ -86,3 +86,5 @@ Revision history for Perl extension PDL::NetCDFobj
          - Added patch from Sisyphus to help this to work on Windows.
            Now test $Config{'ivsize'} instead of $Config{'longsize'}
 	   when determining size of offset and count vectors.
+4.07  12/30/2010
+         - Updated META.yml so CPAN (hopefully) indexes it correctly

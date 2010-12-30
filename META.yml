@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               PDL-NetCDF
-version:            4.06
+version:            4.07
 abstract:           ~
 author:
     - Douglas Hunt (dhunt@ucar.edu)
@@ -12,6 +12,10 @@ build_requires:
     ExtUtils::MakeMaker:  0
 requires:
     PDL:  2.2
+provides:
+    PDL::NetCDF:
+        file:     netcdf.pd
+        version:  4.07
 no_index:
     directory:
         - t

@@ -72,6 +72,7 @@ WriteMakefile(
 	      'PREREQ_PM'    => { PDL => 2.2 },
 	      'CCFLAGS'      => "$define_bool -g",  
 	      'VERSION_FROM' => 'netcdf.pd',
+	      'META_MERGE'   =>  {provides => {PDL::NetCDF => {file => 'netcdf.pd', version => 4.07}}},
 	      'TYPEMAPS'     => [&PDL_TYPEMAP()], 
 	      'OBJECT'       => 'NetCDF.o ',
 	      'PM'           => { 'NetCDF.pm' => '$(INST_LIBDIR)/NetCDF.pm'},
