@@ -890,7 +890,7 @@ EOXS
 pp_addpm (<<'EOPM');
 
 BEGIN { 
-$VERSION = '4.07'
+$VERSION = '4.08'
 };
 
 use Carp;
@@ -898,6 +898,13 @@ use Fcntl; # importing constants O_CREAT,O_RDONLY,O_RDWR
 use constant DEBUG => 0;
 
 EOPM
+if ($Config{'ivsize'} == 8) { pp_addpm ('
+use constant PACKTYPE => "Q*";
+');
+} else { pp_addpm ('
+use constant PACKTYPE => "L*";
+'); }
+
 
 #-------------------------------------------------------------------------
 # netCDF constants
@@ -1171,7 +1178,7 @@ sub new {
     $write = 1;
   }
     
-  if (-e $file) {
+  if (-e $file or ($file =~ m{^http://})) {
 
     if ($write) {
 
@@ -1649,22 +1656,10 @@ sub putslice {
       $self->{DEFINE} = 0;
   }
 
-    # Convert start and count from perl lists to scalars
-EOPM
+  # Convert start and count from perl lists to scalars
+  my $st = pack (PACKTYPE, @$start);
+  my $ct = pack (PACKTYPE, @$count);
 
-#------------------------------------------------------------------------------------------------------
-# Add these statements for machines w/64 bit longs    
-if ($Config{'ivsize'} == 8) { pp_addpm ('
-    my $st = pack ("Q*", @$start);
-    my $ct = pack ("Q*", @$count);
-');
-} else { pp_addpm ('
-    my $st = pack ("L*", @$start);
-    my $ct = pack ("L*", @$count);
-'); }
-#------------------------------------------------------------------------------------------------------
-
-pp_addpm (<<'EOPM');
   # Call the correct 'put' routine depending on PDL type
   if(ref($pdl) =~ /Char/)  {  # a PDL::Char type PDL--write a netcdf char variable
     $rc = PDL::NetCDF::nc_put_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, ${$pdl->get_dataref});
@@ -1682,6 +1677,38 @@ pp_addpm (<<'EOPM');
 EOPM
 
 pp_addpm (<<'EOPM');
+
+sub _recursiveGetStringSlice {
+    my ($self, $varnm, $pdl, $start, $count, $curStart, $loopPos) = @_;
+    if ($loopPos == (@$start - 1)) {
+        # allocate a string max line-size, determined by last dimension
+        my $t = ' ' x $count->[$loopPos];
+        # only last count > 1;
+        my @slice_count = map { 1 } @$count;
+        $slice_count[-1] = $count->[$loopPos];
+        my $st = pack (PACKTYPE, @$curStart);
+        my $ct = pack (PACKTYPE, @slice_count);
+        $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $t);
+        my @pdlStart;
+        for (my $i = 0; $i < $loopPos; $i++) {
+            if ($count->[$i] > 1) { # slices with size 1 are reduced
+                unshift @pdlStart, $curStart->[$i] - $start->[$i]; # reverse dims here!
+            }
+        }
+        unless (@pdlStart) {
+            $pdlStart[0] = 0;
+        }
+        $pdl->setstr(@pdlStart, $t);
+    } else {
+        for (my $i = 0; $i < $count->[$loopPos]; $i++) {
+            my @thisStart = @$curStart;
+            $thisStart[$loopPos] = $start->[$loopPos] + $i;
+            # and now read the slice starting at thisPos
+            _recursiveGetStringSlice($self, $varnm, $pdl, $start, $count, \@thisStart, $loopPos+1);
+        }
+    }
+}
+
 # Get a variable into a pdl
 sub get {
   my $self  = shift;
@@ -1721,24 +1748,8 @@ sub get {
 
     # Note the 'reverse'! Necessary fiddling to get dimension order to work.
     $pdl = &{$typemap{$self->{DATATYPES}{$varnm}}}(reverse @cnt);	
-
-    # Convert start and count from perl lists to scalars
-EOPM
-
-#------------------------------------------------------------------------------------------------------
-# Add these statements for machines w/64 bit longs    
-if ($Config{'ivsize'} == 8) { pp_addpm ('
-    my $st = pack ("Q*", @$start);
-    my $ct = pack ("Q*", @$count);
-');
-} else { pp_addpm ('
-    my $st = pack ("L*", @$start);
-    my $ct = pack ("L*", @$count);
-'); }
-#------------------------------------------------------------------------------------------------------
-
-pp_addpm (<<'EOPM');
-
+    my $st = pack (PACKTYPE, @$start);
+    my $ct = pack (PACKTYPE, @$count);
     # Get the data
     if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
 
@@ -1750,32 +1761,9 @@ pp_addpm (<<'EOPM');
       $rc = PDL::NetCDF::nc_inq_vardimid ($self->{NCID}, $self->{VARIDS}{$varnm}, $dimids);
       croak ("get:  Cannot get info on this var id -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
 
-      # If the first dim is the unlimited dim, this PDL needs to be read in slices
-      # by unlimited dimension.  D. Hunt 8/3/2009
+      # If the first dim is the unlimited dim, this PDL needs to be read in slices.  D. Hunt 8/3/2009
       if ($self->{SLOW_CHAR_FETCH} || (defined $self->{UNLIMID} && $self->{UNLIMID} == $dimids->at(0))) {
-        my @ncCount = @$count;
-        for (my $j=0;$j<$ncCount[0];$j++) {
-          my $t = ' ' x ($pdl->nelem/$ncCount[0]);
-          my $start = [$j,map { 0 } @ncCount[1..$#ncCount]];
-          my $slice_count = [1,@ncCount[1..$#ncCount]];
-EOPM
-#------------------------------------------------------------------------------------------------------
-# Add these statements for machines w/64 bit longs    
-if ($Config{'ivsize'} == 8) { pp_addpm ('
-    my $st = pack ("Q*", @$start);
-    my $ct = pack ("Q*", @$slice_count);
-');
-} else { pp_addpm ('
-    my $st = pack ("L*", @$start);
-    my $ct = pack ("L*", @$slice_count);
-'); }
-#------------------------------------------------------------------------------------------------------
-
-pp_addpm (<<'EOPM');
-          $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $t);
-          $pdl->setstr($j, $t);
-        }
-
+        _recursiveGetStringSlice($self, $varnm, $pdl, $start, $count, $start, 0);
       } else { # first dim not the unlimited dimension
         my $f = ${$pdl->get_dataref};
         $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $f);
@@ -1817,33 +1805,10 @@ pp_addpm (<<'EOPM');
     # Get the data
     if (ref($pdl) =~ /Char/) {  # a PDL::Char type PDL--write a netcdf char variable
 
-      # If the first dim is the unlimited dim, this PDL needs to be read in slices
-      # by unlimited dimension.  D. Hunt 1/17/2003
+      # If the first dim is the unlimited dim, this PDL needs to be read in slices. D. Hunt 1/17/2003
       if ($self->{SLOW_CHAR_FETCH} || (defined $self->{UNLIMID} && $self->{UNLIMID} == $dimids->at(0))) {
-        for (my $j=0;$j<$cnt[0];$j++) {
-          my $t = ' ' x ($pdl->nelem/$cnt[0]);
-          my $start = [$j,map { 0 } @cnt[1..$#cnt]];
-	  my $count = [1,@cnt[1..$#cnt]];
-
-EOPM
-
-#------------------------------------------------------------------------------------------------------
-# Add these statements for machines w/64 bit longs
-if ($Config{'ivsize'} == 8) { pp_addpm ('
-    my $st = pack ("Q*", @$start);
-    my $ct = pack ("Q*", @$count);
-');
-} else { pp_addpm ('
-    my $st = pack ("L*", @$start);
-    my $ct = pack ("L*", @$count);
-'); }
-#------------------------------------------------------------------------------------------------------
-
-pp_addpm (<<'EOPM');
-
-          $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $t);	
-          $pdl->setstr($j, $t);
-        }
+        my @start = map {0} @cnt;
+        _recursiveGetStringSlice($self, $varnm, $pdl, \@start, \@cnt, \@start, 0);
       } else {
         my $f = ${$pdl->get_dataref};
         $rc = PDL::NetCDF::nc_get_var_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $f);
@@ -2133,22 +2098,8 @@ sub puttext {
   }
 
 
-EOPM
-
-#------------------------------------------------------------------------------------------------------
-# Add these statements for machines w/64 bit longs    
-if ($Config{'ivsize'} == 8) { pp_addpm ('
-    my $st = pack ("Q*", ((0) x $ndims));
-    my $ct = pack ("Q*", @$dimlens);
-');
-} else { pp_addpm ('
-    my $st = pack ("L*", ((0) x $ndims));
-    my $ct = pack ("L*", @$dimlens);
-
-'); }
-#------------------------------------------------------------------------------------------------------
-
-pp_addpm (<<'EOPM');
+  my $st = pack (PACKTYPE, ((0) x $ndims));
+  my $ct = pack (PACKTYPE, @$dimlens);
 
   # Call the 'put' routine 
   $rc = PDL::NetCDF::nc_put_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $str."\0"); # null terminate!
@@ -2194,23 +2145,8 @@ sub gettext {
   # Get text attribute into perl string
   croak ("gettext:  Data not of string type") if ($datatype != NC_CHAR());
 
-
-EOPM
-
-#------------------------------------------------------------------------------------------------------
-# Add these statements for machines w/64 bit longs    
-if ($Config{'ivsize'} == 8) { pp_addpm ('
-    my $st = pack ("Q*", ((0) x $ndims));
-    my $ct = pack ("Q*", @dims);
-');
-} else { pp_addpm ('
-    my $st = pack ("L*", ((0) x $ndims));
-    my $ct = pack ("L*", @dims);
-
-'); }
-#------------------------------------------------------------------------------------------------------
-
-pp_addpm (<<'EOPM');
+  my $st = pack (PACKTYPE, ((0) x $ndims));
+  my $ct = pack (PACKTYPE, @dims);
 
   $rc = PDL::NetCDF::nc_get_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, my $str=('x' x $total_size)."\0"); # null terminate!
   croak ("gettext:  Cannot get text variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;  

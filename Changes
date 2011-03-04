@@ -88,3 +88,8 @@ Revision history for Perl extension PDL::NetCDFobj
 	   when determining size of offset and count vectors.
 4.07  12/30/2010
          - Updated META.yml so CPAN (hopefully) indexes it correctly
+4.08  01/31/2011
+         Patches from Heiko Klein:
+         - Use recursive slicing for PDL::Chars to allow high-dimensional
+           string slices
+         - Generalize file test to allow OpenDAP to work.

@@ -1,6 +1,8 @@
-use Test::More tests => 44;
+use Test::More tests => 46;
 use warnings;
 use strict;
+use Fcntl;
+use FindBin qw($Bin);
 BEGIN { use_ok('PDL') };
 BEGIN { use_ok('PDL::NetCDF') };
 BEGIN { use_ok('PDL::Char') };
@@ -175,6 +177,7 @@ for ('abc', 'defg', 'hijkl') {
 }
 $charout = $obj->get('char_unlim');
 $pdlchar = PDL::Char->new (['abc', 'defg', 'hijkl']);
+print $charout, "\n";
 ok (sum($pdlchar - $charout) == 0, "chars with unlimited dimension");
 
 my $charout1 = $obj->get('char_unlim', [0,0], [3, $strlen]);
@@ -200,6 +203,19 @@ $obj->close;
 $obj = PDL::NetCDF->new('foo.nc');
 $obj->getatt("text_attribute");
 ok(1, "close is idempotent");
+
+# check reading of string slices
+$obj = PDL::NetCDF->new("$Bin/threedimstring.nc", {MODE => O_RDONLY,
+			    		           REVERSE_DIMS => 1,
+                                                   SLOW_CHAR_FETCH => 1});
+my $varname = 'threedimstring';
+my $str1 = $obj->get ($varname, [0, 0, 0], [200, 1, 1]);
+my $str2 =  $obj->get ($varname, [0, 1, 1], [200, 1, 1]);
+ok($str1->string ne $str2->string, "slicing different strings");
+my $strX = $obj->get($varname);
+my $nsize = 1;
+map {$nsize *= $_ } $strX->dims;
+ok($nsize == 200*5*4, "reading 3dim strings complete");
 
 BEGIN {
   if(-e 'foo.nc'){
