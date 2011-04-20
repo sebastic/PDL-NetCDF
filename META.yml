@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               PDL-NetCDF
-version:            4.08
+version:            4.09
 abstract:           ~
 author:
     - Douglas Hunt (dhunt@ucar.edu)
@@ -15,7 +15,7 @@ requires:
 provides:
     PDL::NetCDF:
         file:     netcdf.pd
-        version:  4.08
+        version:  4.09
 no_index:
     directory:
         - t

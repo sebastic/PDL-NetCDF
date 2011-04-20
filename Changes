@@ -93,3 +93,6 @@ Revision history for Perl extension PDL::NetCDFobj
          - Use recursive slicing for PDL::Chars to allow high-dimensional
            string slices
          - Generalize file test to allow OpenDAP to work.
+4.09  04/20/2011
+         Added setrec/putrec/getrec routines to quickly read/write one element
+         from/to a set of 1D variables.  Requested by Robb Kambic of UNIDATA.

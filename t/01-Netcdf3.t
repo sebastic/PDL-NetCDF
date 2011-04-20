@@ -1,4 +1,4 @@
-use Test::More tests => 46;
+use Test::More tests => 49;
 use warnings;
 use strict;
 use Fcntl;
@@ -16,6 +16,21 @@ my $obj = PDL::NetCDF->new ('foo.nc');
 my $in1 = pdl [[1,2,3], [4,5,6]];
 $obj->put ('var1', ['dim1', 'dim2'], $in1);
 my $out1 = $obj->get ('var1');
+
+# Test record putting
+$obj->put ('recvar1', ['dim2'], double ([1,2,3]));
+$obj->put ('recvar2', ['dim2'], long   ([1,2,3]));
+my $rec_id = $obj->setrec('recvar1', 'recvar2');
+$obj->putrec($rec_id, 1, [9, 8]);
+my @rec = $obj->getrec($rec_id, 1);
+ok((($rec[0] == 9) && ($rec[1] == 8)), "setrec/recput/recget OK");
+
+eval { $obj->putrec($rec_id, 9, [9, 8]) };
+ok ($@ =~ /NetCDF: Index exceeds dimension bound/, "Correctly failed to put record with illegal index");
+
+$obj->put ('recvar3', ['dim2long'], float ([1,2,3,4]));
+my $rec_id_bad = eval { $obj->setrec('recvar1', 'recvar2', 'recvar3') };
+ok ($@ =~ /All variables in a record must have the same dimension/, "Correctly failed to create record with mis-matched variable sizes");
 
 my $str = "Station1  Station2  Station3  ";
 $obj->puttext('textvar', ['n_station', 'n_string'], [3,10], $str);

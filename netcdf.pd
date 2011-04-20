@@ -590,6 +590,74 @@ An array reference of variable names
   
   my $varlist = $ncobj->getvariablenames();
 
+=head2 setrec
+
+=for ref
+
+Set up a 'record' of several 1D netCDF variables with the
+same dimension.  Once this is set up, quick reading/writing
+of one element from all variables can be put/get from/to a
+perl list.
+
+=for usage
+
+Arguments:
+
+ 1) The names of all the netCDF variables to group into a record
+
+Returns:
+ A record name to use in future putrec/getrec calls
+
+=for example
+
+  my $rec = $ncobj->setrec('var1', 'var2', 'var3');
+
+=head2 getrec
+
+=for ref
+
+Gets a 'record' (one value from each of several 1D netCDF
+variables) previously set up using 'setrec'.  These values
+are returned in a perl list.
+
+=for usage
+
+Arguments:
+
+ 1) The name of the record set up in 'setrec'.
+ 2) The index to fetch.
+
+Returns:
+ A perl list of all values.  Note that these variables
+ can be of different types: float, double, integer, string.
+
+=for example
+
+  my @rec = $ncobj->getrec($rec, 5);
+
+=head2 putrec
+
+=for ref
+
+Puts a 'record' (one value from each of several 1D netCDF
+variables) previously set up using 'setrec'.  These values
+are supplied as a perl list reference.
+
+=for usage
+
+Arguments:
+
+ 1) The name of the record set up in 'setrec'.
+ 2) The index to set.
+ 3) A perl list ref containing the values.
+
+Returns:
+ None.
+
+=for example
+
+  $ncobj->putrec($rec, 5, \@values);
+
 =head1 WRITING NetCDF-FILES EFFICIENTLY
 
 Writing several variables to NetCDF-files can take a long time. When a
@@ -890,7 +958,7 @@ EOXS
 pp_addpm (<<'EOPM');
 
 BEGIN { 
-$VERSION = '4.08'
+$VERSION = '4.09'
 };
 
 use Carp;
@@ -2155,7 +2223,64 @@ sub gettext {
 
 }
 
+# Establish a 'record' (a group of 1D variables all having a shared dimension).
+sub setrec {
 
+  my $self = shift;
+  my @vars = @_;
+
+  my $varlist = $self->getvariablenames();
+
+  my %dimhash = ();
+  foreach my $var (@vars) {
+    die "Cannot find $var in netCDF file" if (!grep /^$var$/, @$varlist);
+    my $dimname = $self->getdimensionnames($var);
+    die "$var has more than one dimension" if (@$dimname > 1);
+    $dimhash{$$dimname[0]}++;
+  }
+
+  # Insist all variables must have the same dimension name
+  die "All variables in a record must have the same dimension (which is not true here)"
+    if (keys %dimhash > 1);
+
+  my $recN = ($self->{MAXRECNUM} // 0) + 1;
+  $self->{MAXRECNUM} = $recN;
+
+  my $rec_name = "rec$recN";
+
+  $self->{RECS}{$rec_name}{NAMES} = [@vars];
+
+  # Store the data types of each variable in the record
+  $self->{RECS}{$rec_name}{DATATYPES} = [map { $self->{DATATYPES}{$_} } @vars];
+
+  # Store the variable IDs of each variable in the record $self->{VARIDS}{$name} = $i;
+  $self->{RECS}{$rec_name}{VARIDS}    = [map { $self->{VARIDS}{$_} } @vars];
+
+  return $rec_name;
+
+}
+
+# Perl outer layer of the 'putrec' subroutine to update many 1D variables quickly
+sub putrec {
+  my $self   = shift;
+  my $rec    = shift; # record name
+  my $idx    = shift;
+  my $values = shift;
+
+  c_putrec ($self->{NCID}, $self->{RECS}{$rec}{VARIDS}, $self->{RECS}{$rec}{DATATYPES}, $idx, $values);
+
+}
+
+# Perl outer layer of the 'getrec' subroutine to update many 1D variables quickly
+#  my @rec = $ncobj->getrec($rec, 5);
+sub getrec {
+  my $self   = shift;
+  my $rec    = shift; # record name
+  my $idx    = shift;
+
+  return c_getrec ($self->{NCID}, $self->{RECS}{$rec}{VARIDS}, $self->{RECS}{$rec}{DATATYPES}, $idx);
+
+}
 EOPM
 
 #-------------------------------------------------------------------------
@@ -2179,6 +2304,126 @@ CODE:
 OUTPUT:
 	RETVAL  
 
+int
+c_putrec (ncid, varids, datatypes, idx, values)
+  int ncid
+  SV* varids
+  SV* datatypes
+  int idx
+  SV* values
+PPCODE:
+  int i;
+  int dt;
+  int varid;
+
+  char   c_elem;
+  short  s_elem;
+  int    i_elem;
+  float  f_elem;
+  double d_elem;
+
+  char errmsg[256];
+
+  SV **elem;
+  size_t nc_index[1]; // Index for use in inserting variables
+  int rc = NC_NOERR;  // 0
+  int recsize = av_len((AV *)SvRV(varids)) + 1;
+  nc_index[0] = idx; // index to put
+
+  // loop over input variables
+  for (i=0; i<recsize; i++) {
+    elem = av_fetch((AV *)SvRV(datatypes), i, 0); // elem is perl SV for the datatype
+    dt   = (int)SvIV(*elem); // dt is the data type of the current variable (C int)
+
+    elem   = av_fetch((AV *)SvRV(varids), i, 0);
+    varid  = (int)SvIV(*elem);
+
+    elem   = av_fetch((AV *)SvRV(values), i, 0); // perl SV for current value
+
+    if (dt == NC_BYTE) {
+      c_elem = (char)SvIV(*elem); // element to put
+      rc = nc_put_var1_schar  (ncid, varid, nc_index, &c_elem);
+    } else if (dt == NC_SHORT) {
+      s_elem = (short)SvIV(*elem); // element to put
+      rc = nc_put_var1_short  (ncid, varid, nc_index, &s_elem);
+    } else if (dt == NC_INT) {
+      i_elem = (int)SvIV(*elem); // element to put
+      rc = nc_put_var1_int    (ncid, varid, nc_index, &i_elem);
+    } else if (dt == NC_FLOAT) {
+      f_elem = (float)SvNV(*elem); // element to put
+      rc = nc_put_var1_float  (ncid, varid, nc_index, &f_elem);
+    } else if (dt == NC_DOUBLE) {
+      d_elem = (double)SvNV(*elem); // element to put
+      rc = nc_put_var1_double (ncid, varid, nc_index, &d_elem);
+    }
+    if (rc != NC_NOERR) {
+      const char *myerrstr = nc_strerror(rc);
+      snprintf(errmsg, sizeof(errmsg), "Error writing NCID %d: %s\n", varid, myerrstr);
+      croak (errmsg);
+    }
+  }
+EOXS
+
+#-------------------------------------------------------------------------
+# Get a list of values from a bunch of 1D variables.
+#-------------------------------------------------------------------------
+pp_addxs (<<'EOXS');
+
+int
+c_getrec (ncid, varids, datatypes, idx)
+  int ncid
+  SV* varids
+  SV* datatypes
+  int idx
+PPCODE:
+  int i;
+  int dt;
+  int varid;
+
+  char   c_elem;
+  short  s_elem;
+  int    i_elem;
+  float  f_elem;
+  double d_elem;
+
+  char errmsg[256];
+
+  SV **elem;
+  size_t nc_index[1]; // Index for use in inserting variables
+  int rc = NC_NOERR;  // 0
+  int recsize = av_len((AV *)SvRV(varids)) + 1;
+  nc_index[0] = idx; // index to put
+
+  // loop over input variables
+  for (i=0; i<recsize; i++) {
+    elem = av_fetch((AV *)SvRV(datatypes), i, 0); // elem is perl SV for the datatype
+    dt   = (int)SvIV(*elem); // dt is the data type of the current variable (C int)
+
+    elem   = av_fetch((AV *)SvRV(varids), i, 0);
+    varid  = (int)SvIV(*elem);
+
+    EXTEND (SP, 1);
+    if (dt == NC_BYTE) {
+      rc = nc_get_var1_schar (ncid, varid, nc_index, &c_elem);
+      PUSHs (sv_2mortal (newSViv ((IV)c_elem)));
+    } else if (dt == NC_SHORT) {
+      rc = nc_get_var1_short (ncid, varid, nc_index, &s_elem);
+      PUSHs (sv_2mortal (newSViv ((IV)s_elem)));
+    } else if (dt == NC_INT) {
+      rc = nc_get_var1_int   (ncid, varid, nc_index, &i_elem);
+      PUSHs (sv_2mortal (newSViv ((IV)i_elem)));
+    } else if (dt == NC_FLOAT) {
+      rc = nc_get_var1_float (ncid, varid, nc_index, &f_elem);
+      PUSHs (sv_2mortal (newSVnv ((double)f_elem)));
+    } else if (dt == NC_DOUBLE) {
+      rc = nc_get_var1_double (ncid, varid, nc_index, &d_elem);
+      PUSHs (sv_2mortal (newSVnv (d_elem)));
+    }
+    if (rc != NC_NOERR) {
+      snprintf(errmsg, sizeof(errmsg), "Error writing NCID %d: rc = %d\n", varid, rc);
+      croak (errmsg);
+    }
+  }
 EOXS
 
 pp_done();
