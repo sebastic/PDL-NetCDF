@@ -958,7 +958,7 @@ EOXS
 pp_addpm (<<'EOPM');
 
 BEGIN { 
-$VERSION = '4.09'
+$VERSION = '4.10'
 };
 
 use Carp;
@@ -2232,10 +2232,18 @@ sub setrec {
   my $varlist = $self->getvariablenames();
 
   my %dimhash = ();
+  my @strdim  = ();
   foreach my $var (@vars) {
     die "Cannot find $var in netCDF file" if (!grep /^$var$/, @$varlist);
     my $dimname = $self->getdimensionnames($var);
-    die "$var has more than one dimension" if (@$dimname > 1);
+    my $datatype = $self->{DATATYPES}{$var};
+    if ($datatype == NC_CHAR) {
+      die "Character variable $var has more than two dimensions" if (@$dimname > 2);
+      push (@strdim, $self->{DIMLENS}{$$dimname[1]});
+    } else {
+      die "$var has more than one dimension" if (@$dimname > 1);
+      push (@strdim, 0);
+    }
     $dimhash{$$dimname[0]}++;
   }
 
@@ -2256,6 +2264,9 @@ sub setrec {
   # Store the variable IDs of each variable in the record $self->{VARIDS}{$name} = $i;
   $self->{RECS}{$rec_name}{VARIDS}    = [map { $self->{VARIDS}{$_} } @vars];
 
+  # Store the lengths of string dimensions (if any) for all variables
+  $self->{RECS}{$rec_name}{STRLEN}    = [@strdim];
+
   return $rec_name;
 
 }
@@ -2267,7 +2278,10 @@ sub putrec {
   my $idx    = shift;
   my $values = shift;
 
-  c_putrec ($self->{NCID}, $self->{RECS}{$rec}{VARIDS}, $self->{RECS}{$rec}{DATATYPES}, $idx, $values);
+  c_putrec ($self->{NCID}, $self->{RECS}{$rec}{VARIDS},
+                           $self->{RECS}{$rec}{DATATYPES},
+                           $self->{RECS}{$rec}{STRLEN},
+                           $idx, $values);
 
 }
 
@@ -2278,7 +2292,9 @@ sub getrec {
   my $rec    = shift; # record name
   my $idx    = shift;
 
-  return c_getrec ($self->{NCID}, $self->{RECS}{$rec}{VARIDS}, $self->{RECS}{$rec}{DATATYPES}, $idx);
+  return c_getrec ($self->{NCID}, $self->{RECS}{$rec}{VARIDS},
+                                  $self->{RECS}{$rec}{DATATYPES},
+                                  $self->{RECS}{$rec}{STRLEN}, $idx);
 
 }
 EOPM
@@ -2302,13 +2318,20 @@ CODE:
 		RETVAL = newSVpv (errstr, strlen(myerrstr));
 	}
 OUTPUT:
-	RETVAL  
+	RETVAL
+EOXS
+
+#-------------------------------------------------------------------------
+# Put a list of values to a bunch of 1D variables.
+#-------------------------------------------------------------------------
+pp_addxs (<<'EOXS');
 
 int
-c_putrec (ncid, varids, datatypes, idx, values)
+c_putrec (ncid, varids, datatypes, strlen, idx, values)
   int ncid
   SV* varids
   SV* datatypes
+  SV* strlen
   int idx
   SV* values
 PPCODE:
@@ -2321,24 +2344,30 @@ PPCODE:
   int    i_elem;
   float  f_elem;
   double d_elem;
+  char  *t_elem; // Hard-coded 256 char limit to string sizes!
+
+  STRLEN len;
 
   char errmsg[256];
 
   SV **elem;
-  size_t nc_index[1]; // Index for use in inserting variables
+  size_t nc_index[2]; // Index for use in inserting variables
+  size_t nc_count[2]; // For 'classic' string variables
   int rc = NC_NOERR;  // 0
   int recsize = av_len((AV *)SvRV(varids)) + 1;
-  nc_index[0] = idx; // index to put
+  nc_index[0] = idx;  // index to put
+  nc_index[1] = 0;    // For string variables
+  nc_count[0] = 1;    // For string variables
 
   // loop over input variables
   for (i=0; i<recsize; i++) {
     elem = av_fetch((AV *)SvRV(datatypes), i, 0); // elem is perl SV for the datatype
     dt   = (int)SvIV(*elem); // dt is the data type of the current variable (C int)
 
-    elem   = av_fetch((AV *)SvRV(varids), i, 0);
-    varid  = (int)SvIV(*elem);
+    elem  = av_fetch((AV *)SvRV(varids), i, 0);
+    varid = (int)SvIV(*elem);
 
-    elem   = av_fetch((AV *)SvRV(values), i, 0); // perl SV for current value
+    elem  = av_fetch((AV *)SvRV(values), i, 0); // perl SV for current value
 
     if (dt == NC_BYTE) {
       c_elem = (char)SvIV(*elem); // element to put
@@ -2355,6 +2384,11 @@ PPCODE:
     } else if (dt == NC_DOUBLE) {
       d_elem = (double)SvNV(*elem); // element to put
       rc = nc_put_var1_double (ncid, varid, nc_index, &d_elem);
+    } else if (dt == NC_CHAR) {
+      t_elem = (char *)SvPV(*elem, len); // element to put
+      elem = av_fetch((AV *)SvRV(strlen), i, 0); // elem is perl SV for the length of this string dimension
+      nc_count[1] = (int)SvIV(*elem); // nc_count[1] is the length of the string dimension for this variable
+      rc = nc_put_vara_text   (ncid, varid, nc_index, nc_count, t_elem);
     }
     if (rc != NC_NOERR) {
       const char *myerrstr = nc_strerror(rc);
@@ -2370,10 +2404,11 @@ EOXS
 pp_addxs (<<'EOXS');
 
 int
-c_getrec (ncid, varids, datatypes, idx)
+c_getrec (ncid, varids, datatypes, strlen, idx)
   int ncid
   SV* varids
   SV* datatypes
+  SV* strlen
   int idx
 PPCODE:
   int i;
@@ -2385,14 +2420,18 @@ PPCODE:
   int    i_elem;
   float  f_elem;
   double d_elem;
+  char   t_elem[256]; // Hard-coded 256 char limit to string sizes!
 
   char errmsg[256];
 
   SV **elem;
-  size_t nc_index[1]; // Index for use in inserting variables
+  size_t nc_index[2]; // Index for use in inserting variables
+  size_t nc_count[2]; // For 'classic' string variables
   int rc = NC_NOERR;  // 0
   int recsize = av_len((AV *)SvRV(varids)) + 1;
-  nc_index[0] = idx; // index to put
+  nc_index[0] = idx;  // index to put
+  nc_index[1] = 0;    // For string variables
+  nc_count[0] = 1;    // For string variables
 
   // loop over input variables
   for (i=0; i<recsize; i++) {
@@ -2418,9 +2457,15 @@ PPCODE:
     } else if (dt == NC_DOUBLE) {
       rc = nc_get_var1_double (ncid, varid, nc_index, &d_elem);
       PUSHs (sv_2mortal (newSVnv (d_elem)));
+    } else if (dt == NC_CHAR) {
+      elem = av_fetch((AV *)SvRV(strlen), i, 0); // elem is perl SV for the length of this string dimension
+      nc_count[1] = (int)SvIV(*elem); // nc_count[1] is the length of the string dimension for this variable
+      rc = nc_get_vara_text (ncid, varid, nc_index, nc_count, (char *)&t_elem);
+      PUSHs (sv_2mortal (newSVpv(t_elem, nc_count[1])));
     }
     if (rc != NC_NOERR) {
-      snprintf(errmsg, sizeof(errmsg), "Error writing NCID %d: rc = %d\n", varid, rc);
+      const char *myerrstr = nc_strerror(rc);
+      snprintf(errmsg, sizeof(errmsg), "Error reading NCID %d: %s\n", varid, myerrstr);
       croak (errmsg);
     }
   }

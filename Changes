@@ -96,3 +96,6 @@ Revision history for Perl extension PDL::NetCDFobj
 4.09  04/20/2011
          Added setrec/putrec/getrec routines to quickly read/write one element
          from/to a set of 1D variables.  Requested by Robb Kambic of UNIDATA.
+4.10  04/21/2011
+         Improved setrec/putrec/getrec routines to allow fixed-length character
+         variables to be read/written as well as numeric vectors.
