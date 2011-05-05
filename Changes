@@ -101,3 +101,7 @@ Revision history for Perl extension PDL::NetCDFobj
          variables to be read/written as well as numeric vectors.
 4.11  05/05/2011
          Fix due to Sisyphus.  Get rid of '//' operator so it works with perl 5.8.
+4.12  05/05/2011
+         Fiddling with VERSION to try to get CPAN to index this.  Removed META.yml, 
+         commented out 'METAMERGE' in Makefile.PL and add 'our' to $VERSION in netcdf.pd.
+

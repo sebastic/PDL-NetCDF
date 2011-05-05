@@ -958,7 +958,7 @@ EOXS
 pp_addpm (<<'EOPM');
 
 BEGIN { 
-$VERSION = '4.11'
+    our $VERSION = '4.12';
 };
 
 use Carp;
