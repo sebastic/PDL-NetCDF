@@ -958,7 +958,7 @@ EOXS
 pp_addpm (<<'EOPM');
 
 BEGIN { 
-$VERSION = '4.10'
+$VERSION = '4.11'
 };
 
 use Carp;
@@ -2251,7 +2251,7 @@ sub setrec {
   die "All variables in a record must have the same dimension (which is not true here)"
     if (keys %dimhash > 1);
 
-  my $recN = ($self->{MAXRECNUM} // 0) + 1;
+  my $recN = (defined($self->{MAXRECNUM}) ? $self->{MAXRECNUM} : 0) + 1;
   $self->{MAXRECNUM} = $recN;
 
   my $rec_name = "rec$recN";
