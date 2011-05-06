@@ -104,4 +104,6 @@ Revision history for Perl extension PDL::NetCDFobj
 4.12  05/05/2011
          Fiddling with VERSION to try to get CPAN to index this.  Removed META.yml, 
          commented out 'METAMERGE' in Makefile.PL and add 'our' to $VERSION in netcdf.pd.
-
+4.13  05/06/2011
+         Added package PDL::NetCDF to netcdf.pd (suggestion by kmx@atlas.cz)
+         Fiddled with $VERSION to make it more global.  Attempts to get CPAN to index this package!

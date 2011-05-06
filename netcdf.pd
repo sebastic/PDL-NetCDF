@@ -2,6 +2,7 @@
 use Config;
 
 pp_addpm({At => Top}, <<'EOD');
+package PDL::NetCDF; # to fool CPAN indexer
 =head1 NAME
 
 PDL::NetCDF - Object-oriented interface between NetCDF files and PDL objects.
@@ -957,8 +958,9 @@ EOXS
 
 pp_addpm (<<'EOPM');
 
+our $VERSION;
 BEGIN { 
-    our $VERSION = '4.12';
+    $VERSION = '4.13';
 };
 
 use Carp;
