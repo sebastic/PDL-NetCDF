@@ -107,3 +107,12 @@ Revision history for Perl extension PDL::NetCDFobj
 4.13  05/06/2011
          Added package PDL::NetCDF to netcdf.pd (suggestion by kmx@atlas.cz)
          Fiddled with $VERSION to make it more global.  Attempts to get CPAN to index this package!
+4.14  08/08/2011
+         Changes by Edward Baudrez, Royal Meteorological Institute of Belgium
+         - added /usr/lib64 to search path for netCDF library
+         - PDL::NetCDF now complains correctly when trying to open a nonexistent file
+           and when O_RDONLY is in effect
+         - PDL::NetCDF does not create a new, empty file when trying to open a
+           nonexistent file and when O_RDONLY is in effect
+         - in test suite: sum() < $tol used to pass erroneously with large negative
+           values, now checks vector norm instead of sum

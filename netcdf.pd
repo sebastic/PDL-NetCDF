@@ -709,6 +709,7 @@ Doug Hunt, dhunt\@ucar.edu.
 =head2 CONTRIBUTORS
 
 Heiko Klein, heiko.klein\@met.no
+Edward Baudrez, Royal Meteorological Institute of Belgium, edward.baudrez\@meteo.be
 
 =head1 SEE ALSO
 
@@ -960,7 +961,7 @@ pp_addpm (<<'EOPM');
 
 our $VERSION;
 BEGIN { 
-    $VERSION = '4.13';
+    $VERSION = '4.14';
 };
 
 use Carp;
@@ -1230,7 +1231,9 @@ sub new {
 	      unlink $file 
 		  or croak "Cannot remove $file: $!";
 	  }
-      } elsif ($$opt{MODE} & O_RDONLY) {
+      } elsif (     O_RDONLY && ( $$opt{MODE} & O_RDONLY ) 
+                || !O_RDONLY && ( ($$opt{MODE} & (O_CREAT | O_RDWR | O_EXCL)) == O_RDONLY ) ) {
+          # O_RDONLY may be zero on some platforms
 	  $write = 0;
 	  unless (-f $file) {
 	      croak "Cannot open readonly! No such file: $file";

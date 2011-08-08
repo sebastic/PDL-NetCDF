@@ -14,6 +14,7 @@ foreach my $libdir (
 		    '/usr/local/lib',
 		    '/opt/local/lib',
 		    '/usr/lib',
+		    '/usr/lib64',
 		    '/opt/lib',
 		                  # Add new library paths here!!
 		    ) {

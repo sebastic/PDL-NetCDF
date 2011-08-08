@@ -1,4 +1,4 @@
-use Test::More tests => 49;
+use Test::More tests => 51;
 use warnings;
 use strict;
 use Fcntl;
@@ -6,10 +6,19 @@ use FindBin qw($Bin);
 BEGIN { use_ok('PDL') };
 BEGIN { use_ok('PDL::NetCDF') };
 BEGIN { use_ok('PDL::Char') };
+BEGIN { note( "Removing test file $_\n" ), unlink foreach grep -e, qw/ foo.nc foo1.nc do_not_create.nc / }
+END   { note( "Removing test file $_\n" ), unlink foreach grep -e, qw/ bogus.nc foo.nc foo1.nc / }
+
+sub vnorm2 { sumover(shift()**2.)->sqrt } # Euclidean vector norm
 
 #
 ## Test object-oriented interface
 #
+
+# Test whether PDL::NetCDF honours `O_RDONLY' when trying to open a nonexistent file
+eval { PDL::NetCDF->new( 'do_not_create.nc', { MODE => O_RDONLY } ) };
+like( $@, qr/Cannot open readonly! No such file/, 'PDL::NetCDF should complain when opening nonexistent file when O_RDONLY is in effect' );
+ok( ! -f 'do_not_create.nc', 'PDL::NetCDF must not create new file when O_RDONLY is in effect' );
 
 # Test starting with new file
 my $obj = PDL::NetCDF->new ('foo.nc');
@@ -69,12 +78,12 @@ my $pi = 4*atan2(1,1);
 my $pdlc = PDL->new ($pi, $pi/2, $pi/4, $pi/8);
 $obj->put ('cpi', ['dimnew'], $pdlc, {COMPRESS => 1});
 my $pdlout = $obj->get('cpi');
-ok(sum($pdlc - $pdlout) < $tol, "Compressed put/get 1");
+cmp_ok(vnorm2($pdlc - $pdlout), '<', $tol, "Compressed put/get 1");
 
 # try fetching compressed PDL
 my $pdlcomp = $obj->get('cpi', {NOCOMPRESS => 1});
 my $correct = pdl (2147483646, -306783379, -1533916891, -2147483648);
-ok(sum($pdlcomp - $correct) < $tol, "Compressed put/get 2");
+cmp_ok(vnorm2($pdlcomp - $correct), '<', $tol, "Compressed put/get 2");
 
 ok(!$obj->close, "Compressed put/get 3");
 
@@ -232,18 +241,3 @@ my $strX = $obj->get($varname);
 my $nsize = 1;
 map {$nsize *= $_ } $strX->dims;
 ok($nsize == 200*5*4, "reading 3dim strings complete");
-
-BEGIN {
-  if(-e 'foo.nc'){
-    print "Removing test files foo.nc and foo1.nc\n";
-    unlink "foo.nc"; 
-    unlink "foo1.nc"; 
-  }
-}
-END {
-  print "Removing test file bogus.nc\n";
-  unlink "bogus.nc";
-  unlink "foo.nc" if -f "foo.nc";
-  unlink "foo1.nc" if -f "foo1.nc"; 
-}
-
