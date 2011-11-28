@@ -116,3 +116,7 @@ Revision history for Perl extension PDL::NetCDFobj
            nonexistent file and when O_RDONLY is in effect
          - in test suite: sum() < $tol used to pass erroneously with large negative
            values, now checks vector norm instead of sum
+4.15  11/28/2011
+         Another attempt at indexing on CPAN.  Specify META_MERGE in Makefile.PL to
+         set version to 4.15.
+
