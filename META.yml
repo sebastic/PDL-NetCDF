@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               PDL-NetCDF
-version:            4.15
+version:            4.16
 abstract:           ~
 author:
     - Douglas Hunt (dhunt@ucar.edu)
@@ -15,12 +15,12 @@ requires:
 provides:
     PDL::NetCDF:
         file:     netcdf.pd
-        version:  4.15
+        version:  4.16
 no_index:
     directory:
         - t
         - inc
-generated_by:       ExtUtils::MakeMaker version 6.56
+generated_by:       ExtUtils::MakeMaker version 6.55_02
 meta-spec:
     url:      http://module-build.sourceforge.net/META-spec-v1.4.html
     version:  1.4

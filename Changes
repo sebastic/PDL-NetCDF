@@ -119,4 +119,10 @@ Revision history for Perl extension PDL::NetCDFobj
 4.15  11/28/2011
          Another attempt at indexing on CPAN.  Specify META_MERGE in Makefile.PL to
          set version to 4.15.
+4.16  4/27/2012
+         Since netcdf-4.20, the NC_NETCDF4 preprocessor variable can no longer be used
+         to determine if HDF functionality is compiled in.  No perform a link/run
+         test in Makefile.PL to determine if nc_inq_var_deflate is defined or not.
+         Use this for the isNetcdf4 function as well.
+
 

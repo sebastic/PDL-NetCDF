@@ -11,6 +11,8 @@ PDLint *		T_PDL
 PDLlong *		T_PDL
 PDLfloat *		T_PDL
 PDLdouble *		T_PDL
+PDLushort *		T_PDL
+PDL_longlong *		T_PDL
 
 #############################################################################
 INPUT
@@ -25,6 +27,8 @@ T_PDLUS
 	$var = (unsigned short *)(PDL->SvPDLV($arg)->data)
 T_PDLL
 	$var = (long *)(PDL->SvPDLV($arg)->data)
+T_PDL_LL
+	$var = (long long *)(PDL->SvPDLV($arg)->data)
 T_PDLF
 	$var = (float *)(PDL->SvPDLV($arg)->data)
 T_PDLD
@@ -42,6 +46,8 @@ T_PDLS
 T_PDLUS
 	PDL->SetSV_PDL($arg,$var);
 T_PDLL
+	PDL->SetSV_PDL($arg,$var);
+T_PDL_LL
 	PDL->SetSV_PDL($arg,$var);
 T_PDLF
 	PDL->SetSV_PDL($arg,$var);

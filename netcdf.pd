@@ -1,6 +1,9 @@
 # -*- Perl -*-
 use Config;
 
+# Read in options determined by Makefile.PL and written to the OPTIONS! file
+my $ncversion = do 'OPTIONS!';
+
 pp_addpm({At => Top}, <<'EOD');
 package PDL::NetCDF; # to fool CPAN indexer
 =head1 NAME
@@ -49,7 +52,7 @@ binary gridded files via PDL objects.
 
   # $dim1size = 2
   my $dim1size = $ncobj->dimsize('dim1');
-addpm
+
   # A slice of the netCDF variable.
   # [0,0] is the starting point, [1,2] is the count.
   # $slice = [1,2]
@@ -719,8 +722,15 @@ perl(1), PDL(1), netcdf(3).
 EOD
 
 # Necessary includes for .xs file
+pp_addhdr('#include <netcdf.h>'."\n");
+if (!$ncversion->{nc_inq_var_deflate}) {
+    # NC_NETCDF4 defined in header though not always in lib
+    pp_addhdr('#undef NC_NETCDF4'."\n");
+}
 pp_addhdr(<<'EOH');
-#include <netcdf.h>
+#define ushort unsigned short
+#define longlong long long
+
 #define PDLchar pdl
 #define PDLuchar pdl
 #define PDLshort pdl
@@ -729,6 +739,11 @@ pp_addhdr(<<'EOH');
 #define PDLfloat pdl
 #define PDLdouble pdl
 #define uchar unsigned char
+#ifdef NC_NETCDF4
+#define PDLushort pdl
+#define PDL_longlong pdl
+#endif
+
 EOH
 
 pp_bless ("PDL::NetCDF");
@@ -756,7 +771,7 @@ sub create_low_level {
     my %output = ();
     foreach $parm (@parms) {
 
-      my ($varname) = ($parm =~ /(\w+)$/);
+      my ($varname) = ($parm =~ /([\w]+)$/);
       $parm =~ s/$varname//; # parm now contains the full C type
       $output{$varname} = 1 if (($parm =~ /\*/) && ($parm !~ /const/));
       $parm =~ s/const //;  # get rid of 'const' in C type
@@ -778,8 +793,8 @@ sub create_low_level {
     $xsout .= "CODE:\n";
     $xsout .= "\tRETVAL = $func_name (";
     for (my $i=0;$i<@vars;$i++) {
-      if ($types[$i] =~ /PDL/) {
-	($type = $types[$i]) =~ s/PDL//; # Get rid of PDL type when writine xs CODE section
+      if ($types[$i] =~ /PDL_?/) {
+	($type = $types[$i]) =~ s/PDL_?//; # Get rid of PDL type when writine xs CODE section
 	$xsout .= "($type)$vars[$i]"."->data,";
       } else {
 	$xsout .= "$vars[$i],";
@@ -926,13 +941,26 @@ EODEF
 #-------------------------------------------------------------------------
 pp_addxs('', "#ifdef NC_NETCDF4\n");
 create_low_level(<<'EODEF');
+int nc_put_var_ushort(int ncid, int varid, const PDLushort *op);
+int nc_get_var_ushort(int ncid, int varid, PDLushort *ip);
+int nc_put_vara_ushort(int ncid, int varid, size_t *startp, size_t *countp, PDLushort *op);
+int nc_get_vara_ushort(int ncid, int varid, size_t *startp, size_t *countp, PDLushort *ip);
+int nc_put_att_ushort(int ncid, int varid, const char *name, nc_type xtype, size_t len, const PDLushort *op);
+int nc_get_att_ushort(int ncid, int varid, const char *name, PDLushort *ip);
+
+int nc_put_var_longlong(int ncid, int varid, const PDL_longlong *op);
+int nc_get_var_longlong(int ncid, int varid, PDL_longlong *ip);
+int nc_put_vara_longlong(int ncid, int varid, size_t *startp, size_t *countp, PDL_longlong *op);
+int nc_get_vara_longlong(int ncid, int varid, size_t *startp, size_t *countp, PDL_longlong *ip);
+int nc_put_att_longlong(int ncid, int varid, const char *name, nc_type xtype, size_t len, const PDL_longlong *op);
+int nc_get_att_longlong(int ncid, int varid, const char *name, PDL_longlong *ip);
+
+
 int nc_def_var_deflate(int ncid, int varid, int shuffle, int deflate, int deflate_level);
 int nc_inq_var_deflate(int ncid, int varid, int *shufflep, int *deflatp, int *deflate_levelp);
 EODEF
 pp_addxs('', "#endif /* NC_NETCDF4 */\n");
-pp_addxs('', <<'EOXS');
-MODULE = PDL::NetCDF PACKAGE = PDL::NetCDF
-
+pp_addxs('', <<"EOXS");
 
 MODULE = PDL::NetCDF PACKAGE = PDL::NetCDF
 
@@ -949,9 +977,7 @@ CODE:
 OUTPUT:
     RETVAL
 
-
 EOXS
-
 
 #-------------------------------------------------------------------------
 # Perl portion of the interface (put by PP into the .pm file)
@@ -961,7 +987,7 @@ pp_addpm (<<'EOPM');
 
 our $VERSION;
 BEGIN { 
-    $VERSION = '4.15';
+    $VERSION = '4.16';
 };
 
 use Carp;
@@ -1055,6 +1081,11 @@ sub NC_SHORT () { return 3; }	 # signed 2 byte integer
 sub NC_INT () { return 4; }	 # signed 4 byte integer 
 sub NC_FLOAT () { return 5; }       # single precision floating point number 
 sub NC_DOUBLE () { return 6; }	 # double precision floating point number 
+sub NC_UBYTE () { return 7; }    # unsigned 1 byte int
+sub NC_USHORT () { return 8; }   # unsigned 2-byte int
+sub NC_UINT () { return 9; }     # unsigned 4-byte int
+sub NC_INT64 () { return 10; }   # signed 8-byte int
+sub NC_UINT64 () { return 11; }  # unsigned 8-byte int
 EOPM
 
 pp_addpm (<<'EOPM');
@@ -1067,6 +1098,11 @@ my %typemap = (
 	       NC_INT()    => sub { PDL->zeroes (PDL::long,   @_); },
 	       NC_FLOAT()  => sub { PDL->zeroes (PDL::float,  @_); },
 	       NC_DOUBLE() => sub { PDL->zeroes (PDL::double, @_); },
+	       NC_UBYTE()   => sub { PDL->zeroes (PDL::byte,   @_); },
+	       NC_USHORT()  => sub { PDL->zeroes (PDL::ushort,  @_); },
+	       NC_UINT()    => sub { PDL->zeroes (PDL::long,   @_); },
+	       NC_INT64()    => sub { PDL->zeroes (PDL::longlong,   @_); },
+	       NC_UINT64()    => sub { PDL->zeroes (PDL::longlong,   @_); },
 	       );
 
 # Used for creating new pdls with the input data, and
@@ -1078,6 +1114,11 @@ my %typemap1 = (
 		NC_INT()    => sub { PDL::long  (@_); },
 		NC_FLOAT()  => sub { PDL::float (@_); },
 		NC_DOUBLE() => sub { PDL::double(@_); },
+        NC_UBYTE()   => sub { PDL::byte (@_); },
+	    NC_USHORT()  => sub { PDL::ushort(@_); },
+	    NC_UINT()    => sub { PDL::long(@_); },
+	    NC_INT64()    => sub { PDL::longlong(@_); },
+	    NC_UINT64()    => sub { PDL::longlong(@_); },
 		);
 
 # Used for creating new blank pdls with the input number of dimensions, and
@@ -1088,6 +1129,8 @@ my %typemap2 = (
 		PDL::long->[0]   => sub { return PDL::NetCDF::nc_put_var_int    (@_); },
 		PDL::float->[0]  => sub { return PDL::NetCDF::nc_put_var_float  (@_); },
 		PDL::double->[0] => sub { return PDL::NetCDF::nc_put_var_double (@_); },
+		PDL::ushort->[0]  => sub { return PDL::NetCDF::nc_put_var_ushort  (@_); },
+		PDL::longlong->[0]   => sub { return PDL::NetCDF::nc_put_var_longlong (@_); },
 		);
 
 
@@ -1098,6 +1141,8 @@ my %typemap3 = (
 		PDL::long->[0]   => NC_INT(), 
 		PDL::float->[0]  => NC_FLOAT(), 
 		PDL::double->[0] => NC_DOUBLE(), 
+        PDL::ushort->[0] => NC_USHORT(),
+        PDL::longlong->[0] => NC_INT64(),
 		);
 
 # Used for getting a netCDF variable for the correct type of a PDL
@@ -1107,6 +1152,8 @@ my %typemap4 = (
 		PDL::long->[0]   => sub { PDL::NetCDF::nc_get_var_int    (@_); },
 		PDL::float->[0]  => sub { PDL::NetCDF::nc_get_var_float  (@_); },
 		PDL::double->[0] => sub { PDL::NetCDF::nc_get_var_double (@_); },
+		PDL::ushort->[0]   => sub { PDL::NetCDF::nc_get_var_ushort    (@_); },
+		PDL::longlong->[0]   => sub { PDL::NetCDF::nc_get_var_longlong    (@_); },
 		);
 
 # Used for putting attributes of correct type for a PDL
@@ -1116,6 +1163,8 @@ my %typemap5 = (
 		PDL::long->[0]   => sub { return PDL::NetCDF::nc_put_att_int    (@_); },
 		PDL::float->[0]  => sub { return PDL::NetCDF::nc_put_att_float  (@_); },
 		PDL::double->[0] => sub { return PDL::NetCDF::nc_put_att_double (@_); },
+		PDL::ushort->[0]   => sub { return PDL::NetCDF::nc_put_att_ushort    (@_); },
+		PDL::longlong->[0]   => sub { return PDL::NetCDF::nc_put_att_longlong    (@_); },
 		);
 
 # Used for getting a netCDF attribute for the correct type of a PDL
@@ -1125,6 +1174,8 @@ my %typemap6 = (
 		PDL::long->[0]   => sub { PDL::NetCDF::nc_get_att_int    (@_); },
 		PDL::float->[0]  => sub { PDL::NetCDF::nc_get_att_float  (@_); },
 		PDL::double->[0] => sub { PDL::NetCDF::nc_get_att_double (@_); },
+		PDL::ushort->[0]   => sub { PDL::NetCDF::nc_get_att_ushort    (@_); },
+		PDL::longlong->[0]   => sub { PDL::NetCDF::nc_get_att_longlong    (@_); },
 		);
 
 # Used for getting a slice of a netCDF variable for the correct type of a PDL 
@@ -1134,6 +1185,8 @@ my %typemap7 = (
 		PDL::long->[0]   => sub { PDL::NetCDF::nc_get_vara_int    (@_); },
 		PDL::float->[0]  => sub { PDL::NetCDF::nc_get_vara_float  (@_); },
 		PDL::double->[0] => sub { PDL::NetCDF::nc_get_vara_double (@_); },
+		PDL::ushort->[0]   => sub { PDL::NetCDF::nc_get_vara_ushort    (@_); },
+		PDL::longlong->[0]   => sub { PDL::NetCDF::nc_get_vara_longlong    (@_); },
 		);
 
 # Used for putting a slice of a netCDF variable for the correct type of a PDL 
@@ -1143,6 +1196,8 @@ my %typemap8 = (
 		PDL::long->[0]   => sub { PDL::NetCDF::nc_put_vara_int    (@_); },
 		PDL::float->[0]  => sub { PDL::NetCDF::nc_put_vara_float  (@_); },
 		PDL::double->[0] => sub { PDL::NetCDF::nc_put_vara_double (@_); },
+		PDL::ushort->[0]   => sub { PDL::NetCDF::nc_put_vara_ushort    (@_); },
+		PDL::longlong->[0]   => sub { PDL::NetCDF::nc_put_vara_longlong    (@_); },
 		);
 
 # maps original type to compressed type
@@ -2346,7 +2401,11 @@ PPCODE:
 
   char   c_elem;
   short  s_elem;
+  ushort us_elem;
   int    i_elem;
+  unsigned int ui_elem;
+  longlong ll_elem;
+  unsigned longlong ull_elem;
   float  f_elem;
   double d_elem;
   char  *t_elem; // Hard-coded 256 char limit to string sizes!
@@ -2383,6 +2442,20 @@ PPCODE:
     } else if (dt == NC_INT) {
       i_elem = (int)SvIV(*elem); // element to put
       rc = nc_put_var1_int    (ncid, varid, nc_index, &i_elem);
+#ifdef NC_NETCDF4
+    } else if (dt == NC_USHORT) {
+      us_elem = (ushort)SvIV(*elem); // element to put
+      rc = nc_put_var1_ushort  (ncid, varid, nc_index, &us_elem);
+    } else if (dt == NC_UINT) {
+      ui_elem = (unsigned int)SvIV(*elem); // element to put
+      rc = nc_put_var1_uint    (ncid, varid, nc_index, &ui_elem);
+    } else if (dt == NC_INT64) {
+      ll_elem = (longlong)SvIV(*elem); // element to put
+      rc = nc_put_var1_longlong    (ncid, varid, nc_index, &ll_elem);
+    } else if (dt == NC_UINT64) {
+      ull_elem = (unsigned longlong)SvIV(*elem); // element to put
+      rc = nc_put_var1_ulonglong    (ncid, varid, nc_index, &ll_elem);
+#endif
     } else if (dt == NC_FLOAT) {
       f_elem = (float)SvNV(*elem); // element to put
       rc = nc_put_var1_float  (ncid, varid, nc_index, &f_elem);
@@ -2398,7 +2471,7 @@ PPCODE:
     if (rc != NC_NOERR) {
       const char *myerrstr = nc_strerror(rc);
       snprintf(errmsg, sizeof(errmsg), "Error writing NCID %d: %s\n", varid, myerrstr);
-      croak (errmsg);
+      croak ("Error writing NCID %d: %s\n", varid, myerrstr);
     }
   }
 EOXS
@@ -2422,7 +2495,9 @@ PPCODE:
 
   char   c_elem;
   short  s_elem;
+  ushort us_elem;
   int    i_elem;
+  longlong ll_elem;
   float  f_elem;
   double d_elem;
   char   t_elem[256]; // Hard-coded 256 char limit to string sizes!
@@ -2456,6 +2531,20 @@ PPCODE:
     } else if (dt == NC_INT) {
       rc = nc_get_var1_int   (ncid, varid, nc_index, &i_elem);
       PUSHs (sv_2mortal (newSViv ((IV)i_elem)));
+#ifdef NC_NETCDF4
+    } else if (dt == NC_USHORT) {
+      rc = nc_get_var1_ushort   (ncid, varid, nc_index, &us_elem);
+      PUSHs (sv_2mortal (newSViv ((IV)us_elem)));
+    } else if (dt == NC_UINT) {
+      rc = nc_get_var1_uint   (ncid, varid, nc_index, &i_elem);
+      PUSHs (sv_2mortal (newSViv ((IV)i_elem)));
+    } else if (dt == NC_INT64) {
+      rc = nc_get_var1_longlong   (ncid, varid, nc_index, &ll_elem);
+      PUSHs (sv_2mortal (newSViv ((IV)ll_elem)));
+    } else if (dt == NC_UINT64) {
+      rc = nc_get_var1_ulonglong   (ncid, varid, nc_index, &ll_elem);
+      PUSHs (sv_2mortal (newSViv ((IV)ll_elem)));
+#endif
     } else if (dt == NC_FLOAT) {
       rc = nc_get_var1_float (ncid, varid, nc_index, &f_elem);
       PUSHs (sv_2mortal (newSVnv ((double)f_elem)));
@@ -2471,7 +2560,7 @@ PPCODE:
     if (rc != NC_NOERR) {
       const char *myerrstr = nc_strerror(rc);
       snprintf(errmsg, sizeof(errmsg), "Error reading NCID %d: %s\n", varid, myerrstr);
-      croak (errmsg);
+      croak ("Error reading NCID %d: %s\n", varid, myerrstr);
     }
   }
 EOXS
