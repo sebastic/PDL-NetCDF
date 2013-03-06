@@ -124,5 +124,11 @@ Revision history for Perl extension PDL::NetCDFobj
          to determine if HDF functionality is compiled in.  No perform a link/run
          test in Makefile.PL to determine if nc_inq_var_deflate is defined or not.
          Use this for the isNetcdf4 function as well.
+4.17  3/06/2013
+         Since netcdf-4.1, the netcdf-library changes the meaning of nc_sync from
+         release internal buffers to make sure everything known is written to disk.
+         This slows down writing a lot. PDL::NetCDF no longer calls nc_sync
+         automatically (except on close). To ensure writing the file to the disk
+         while keeping it open, $nc->sync is now provided.
 
 

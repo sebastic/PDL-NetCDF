@@ -39,9 +39,9 @@
    "provides" : {
       "PDL::NetCDF" : {
          "file" : "netcdf.pd",
-         "version" : "4.16"
+         "version" : "4.17"
       }
    },
    "release_status" : "stable",
-   "version" : "4.16"
+   "version" : "4.17"
 }

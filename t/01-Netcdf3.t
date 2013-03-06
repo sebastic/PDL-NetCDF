@@ -1,4 +1,4 @@
-use Test::More tests => 51;
+use Test::More tests => 52;
 use warnings;
 use strict;
 use Fcntl;
@@ -219,6 +219,8 @@ $obj->put('dimless_var', [],$nullPdl);
 ok(${ $obj->getvariablenames }[0] eq 'dimless_var', 'adding dimless char variable');
 $obj->put('dimless_var2', [], pdl [3]);
 ok(scalar @{ $obj->getvariablenames } == 2, 'adding dimless double variable');
+$obj->sync();
+ok(1, 'sync working');
 $obj->close;
 
 $obj = undef;

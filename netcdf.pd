@@ -317,6 +317,24 @@ None.
 
  note that the netcdf missing value (not 0) is filled in.    
 
+=head2 sync
+
+=for ref
+
+Syncronize the data to the disk. Use this if you want to read
+the file from another process without closing the file. This makes only
+sense after put, puttext, putslice, putatt operations
+
+=for usage
+
+Returns:
+nothing. Barfs on error.
+
+=for example
+
+  $ncobj->sync
+
+
 =head2 get
 
 =for ref
@@ -987,7 +1005,7 @@ pp_addpm (<<'EOPM');
 
 our $VERSION;
 BEGIN { 
-    $VERSION = '4.16';
+    $VERSION = '4.17';
 };
 
 use Carp;
@@ -1537,6 +1555,12 @@ sub getattributenames {
   $attnames;
 } 
 
+sub sync {
+  my $self  = shift;  # name of object
+  $rc = PDL::NetCDF::nc_sync($self->{NCID});
+  croak ("sync:  Cannot sync file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
+  return;
+}
 
 # Put a netCDF variable from a PDL
 sub put {
@@ -1680,9 +1704,6 @@ sub put {
 
   }
 
-  $rc = PDL::NetCDF::nc_sync($self->{NCID});
-  croak ("put:  Cannot sync file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
-
   return 0;
 
 }
@@ -1796,9 +1817,6 @@ sub putslice {
   }
   croak ("put:  Cannot write file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
   
-  $rc = PDL::NetCDF::nc_sync($self->{NCID});
-  croak ("put:  Cannot sync file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
-
   return 0;
 
 }
@@ -2081,9 +2099,6 @@ sub putatt {
     $self->{DEFINE} = 0;
   }
 
-  $rc = PDL::NetCDF::nc_sync($self->{NCID});
-  croak ("putatt:  Cannot sync file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
-
   return 0;
 
 }
@@ -2233,9 +2248,6 @@ sub puttext {
   $rc = PDL::NetCDF::nc_put_vara_text ($self->{NCID}, $self->{VARIDS}{$varnm}, $st, $ct, $str."\0"); # null terminate!
   croak ("put:  Cannot write file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
   
-  $rc = PDL::NetCDF::nc_sync($self->{NCID});
-  croak ("put:  Cannot sync file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;    
-
   return 0;
 }
 

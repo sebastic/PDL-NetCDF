@@ -1,26 +1,26 @@
---- #YAML:1.0
-name:               PDL-NetCDF
-version:            4.16
-abstract:           ~
+---
+abstract: unknown
 author:
-    - Douglas Hunt (dhunt@ucar.edu)
-license:            unknown
-distribution_type:  module
-configure_requires:
-    ExtUtils::MakeMaker:  0
+  - 'Douglas Hunt (dhunt@ucar.edu)'
 build_requires:
-    ExtUtils::MakeMaker:  0
-requires:
-    PDL:  2.2
-provides:
-    PDL::NetCDF:
-        file:     netcdf.pd
-        version:  4.16
-no_index:
-    directory:
-        - t
-        - inc
-generated_by:       ExtUtils::MakeMaker version 6.55_02
+  ExtUtils::MakeMaker: 0
+configure_requires:
+  ExtUtils::MakeMaker: 0
+dynamic_config: 1
+generated_by: 'ExtUtils::MakeMaker version 6.6302, CPAN::Meta::Converter version 2.120630'
+license: unknown
 meta-spec:
-    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
-    version:  1.4
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: PDL-NetCDF
+no_index:
+  directory:
+    - t
+    - inc
+provides:
+  PDL::NetCDF:
+    file: netcdf.pd
+    version: 4.17
+requires:
+  PDL: 2.2
+version: 4.17

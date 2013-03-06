@@ -1,5 +1,5 @@
 # -*- Perl -*-
-use Test::More tests => 20;
+use Test::More tests => 21;
 use Data::Dumper;
 use strict;
 use warnings;
@@ -11,7 +11,7 @@ ok(($isNetCDF == 0 or $isNetCDF == 1), "isNetcdf4 function defined");
 
 my $dir = -d "t" ? "t/" : "./";
 SKIP: {
-    skip "no netcdf4 support", 18 unless PDL::NetCDF::isNetcdf4;
+    skip "no netcdf4 support", 19 unless PDL::NetCDF::isNetcdf4;
     is(PDL::NetCDF::defaultFormat(), PDL::NetCDF::NC_FORMAT_CLASSIC, "classic format is default");
     is(PDL::NetCDF::defaultFormat(), PDL::NetCDF::NC_FORMAT_CLASSIC, "classic format is still default");
     my $nc4 = new PDL::NetCDF($dir . "foo.nc4", {REVERSE_DIMS => 1});
@@ -42,6 +42,8 @@ SKIP: {
     ok(eq_array([7,1], [$nc->getDeflateShuffle('var1')]), "deflateShuffle for var1");
     $nc->putslice('var2', ['dim1','dim2','dim3'],[3,2,2],[0,0,0],[3,2,1],$pdl, {DEFLATE => 8, SHUFFLE => 1});
     ok(1, "putslice with deflate");
+    $nc->sync();
+    ok(1, "sync on nc4");
     ok(eq_array([8,1], [$nc->getDeflateShuffle('var2')]), "deflateShuffle for var2");
     my $outPdl = $nc->get('var1');
     ok(1, 'get deflated variable');
