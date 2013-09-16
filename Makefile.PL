@@ -85,7 +85,7 @@ WriteMakefile(
 	      # 'PREREQ_PM'    => { PDL => 2.2 }, # At request of Hernan De Angelis, 9/16/2013.  Due to renumbering of PDL.
 	      'CCFLAGS'      => "$define_bool -g",  
 	      'VERSION_FROM' => 'netcdf.pd',
-	      'META_MERGE'   =>  {provides => {PDL::NetCDF => {file => 'netcdf.pd', version => 4.17}}},
+	      'META_MERGE'   =>  {provides => {PDL::NetCDF => {file => 'netcdf.pd', version => 4.19}}},
 	      'TYPEMAPS'     => [&PDL_TYPEMAP()], 
 	      'OBJECT'       => 'NetCDF.o ',
 	      'PM'           => { 'NetCDF.pm' => '$(INST_LIBDIR)/NetCDF.pm'},

@@ -133,5 +133,8 @@ Revision history for Perl extension PDL::NetCDFobj
 4.18  9/16/2013
          Added new library path (/usr/local/lib64) and commented out PDL 2.2 requirement.
          Requested by Hernan De Angelis.
+4.19  9/16/2013
+         Fixed errors in version number to help PAUSE indexer.
+         
          
 

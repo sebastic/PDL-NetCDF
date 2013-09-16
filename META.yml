@@ -20,6 +20,6 @@ no_index:
 provides:
   PDL::NetCDF:
     file: netcdf.pd
-    version: 4.17
+    version: 4.19
 requires: {}
-version: 4.18
+version: 4.19
