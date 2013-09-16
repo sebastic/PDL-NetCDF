@@ -18,6 +18,7 @@ foreach my $libdir (
 		    '/usr/lib',
 		    '/usr/lib64',
 		    '/opt/lib',
+                    '/usr/local/lib64', # Added at request of Hernan De Angelis, 9/16/2013
 		                  # Add new library paths here!!
 		    ) {
 
@@ -81,7 +82,7 @@ $package = ["netcdf.pd",NetCDF,PDL::NetCDF];
 WriteMakefile(
 	      'NAME'  	     => 'PDL::NetCDF',
 	      'AUTHOR'       => 'Douglas Hunt (dhunt@ucar.edu)',
-	      'PREREQ_PM'    => { PDL => 2.2 },
+	      # 'PREREQ_PM'    => { PDL => 2.2 }, # At request of Hernan De Angelis, 9/16/2013.  Due to renumbering of PDL.
 	      'CCFLAGS'      => "$define_bool -g",  
 	      'VERSION_FROM' => 'netcdf.pd',
 	      'META_MERGE'   =>  {provides => {PDL::NetCDF => {file => 'netcdf.pd', version => 4.17}}},

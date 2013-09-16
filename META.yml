@@ -21,6 +21,5 @@ provides:
   PDL::NetCDF:
     file: netcdf.pd
     version: 4.17
-requires:
-  PDL: 2.2
-version: 4.17
+requires: {}
+version: 4.18

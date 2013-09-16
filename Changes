@@ -130,5 +130,8 @@ Revision history for Perl extension PDL::NetCDFobj
          This slows down writing a lot. PDL::NetCDF no longer calls nc_sync
          automatically (except on close). To ensure writing the file to the disk
          while keeping it open, $nc->sync is now provided.
-
+4.18  9/16/2013
+         Added new library path (/usr/local/lib64) and commented out PDL 2.2 requirement.
+         Requested by Hernan De Angelis.
+         
 

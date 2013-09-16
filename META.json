@@ -31,9 +31,7 @@
          }
       },
       "runtime" : {
-         "requires" : {
-            "PDL" : "2.2"
-         }
+         "requires" : {}
       }
    },
    "provides" : {
@@ -43,5 +41,5 @@
       }
    },
    "release_status" : "stable",
-   "version" : "4.17"
+   "version" : "4.18"
 }
