@@ -31,7 +31,9 @@
          }
       },
       "runtime" : {
-         "requires" : {}
+         "requires" : {
+            "PDL" : "0"
+         }
       }
    },
    "provides" : {
@@ -41,5 +43,5 @@
       }
    },
    "release_status" : "stable",
-   "version" : "4.19"
+   "version" : "4.20"
 }

@@ -1005,7 +1005,7 @@ pp_addpm (<<'EOPM');
 
 our $VERSION;
 BEGIN { 
-    $VERSION = '4.19';
+    $VERSION = '4.20';
 };
 
 use Carp;
