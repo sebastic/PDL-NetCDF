@@ -17,9 +17,9 @@ if ($^O =~ /linux/) {
 }
 
 my %ncversion = (); # Information on which netcdf functions/features available.
-$ncversion{'nc_inq_var_deflate'} = test_func_exists(
-  'nc_inq_var_deflate', 'HDF library installed',
-  'nc_inq_var_deflate(0, 0, NULL, NULL, NULL);'
+$ncversion{'nc_inq_var_deflate'} = check_lib(
+  header => 'netcdf.h', lib => 'netcdf',
+  function => 'nc_inq_var_deflate(0, 0, NULL, NULL, NULL);',
 );
 
 # Write these options to a file--used by netcdf.pd during the 'make' step
@@ -49,62 +49,3 @@ $hash{LIBS}[0] .= " -lnetcdf";
 WriteMakefile(%hash);
 
 sub MY::postamble { pdlpp_postamble($package); }
-
-sub test_func_exists {
-
-    my ( $func, $comment, $eval, $option ) = @_;
-
-    $option = $func unless defined $option;
-
-    # Test if PLplot has plsmem, for in memory plotting
-    eval { compileAndRun ("-lnetcdf", 0, <<"EOC");
-#include <netcdf.h>
-main () {  $eval }
-EOC
-       };
-
-    my $have_func;
-    if ($@)
-    {
-	print "\t$func function not found, no $comment available\n";
-	$have_func = 0;
-    }
-    else
-    {
-	print "\t$func function found, $comment available!\n";
-	$have_func = 1;
-    }
-
-    return $have_func;
-}
-
-sub compileAndRun {
-  my $flags = shift;
-  my $run   = shift;
-  my $code  = shift;
-  require File::Spec;
-  require Config;
-  my $devnull = File::Spec->devnull(); # Portable null device.
-
-  open (OUT, ">temp.c");
-  print OUT $code;
-  close OUT;
-  unlink './temp'; # since we work out whether the compile succeeds by presence of this
-  unlink './temp.exe'; # since we work out whether the compile succeeds by presence of this
-
-  my $cc = $Config::Config{cc};
-  my $ccflags = $Config::Config{ccflags};
-  print "Trying: $cc $ccflags $flags temp.c -o temp\n";
-
-  # The duplication of $flags seems to be necessary, as some systems
-  # need $flags before temp.c and some after.  D. Hunt 2/9/2011
-  system "$cc $ccflags $flags temp.c $flags -o temp > $devnull 2>&1";
-  unlink('./temp.c');
-  die "Cannot compile test program: $code" unless (-e 'temp' or -e 'temp.exe');
-  return unless ($run);
-
-  my $res = `./temp`;
-  unlink ('./temp');
-  unlink ('./temp.exe');
-  return $res;
-}
