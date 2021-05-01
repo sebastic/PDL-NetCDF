@@ -1,0 +1,9 @@
+NetCDF.bs
+NetCDF.c
+NetCDF.o
+NetCDF.pm
+NetCDF.xs
+Makefile
+Makefile.old
+blib/
+pm_to_blib
