@@ -1,6 +1,8 @@
 # -*- Perl -*-
 use Config;
 use Devel::CheckLib qw(check_lib);
+our $VERSION = '4.20';
+pp_setversion($VERSION);
 
 my $ncversion = {nc_inq_var_deflate => check_lib(
   header => 'netcdf.h', lib => 'netcdf',
@@ -1004,11 +1006,6 @@ EOXS
 #-------------------------------------------------------------------------
 
 pp_addpm (<<'EOPM');
-
-our $VERSION;
-BEGIN { 
-    $VERSION = '4.20';
-};
 
 use Carp;
 use Fcntl; # importing constants O_CREAT,O_RDONLY,O_RDWR
