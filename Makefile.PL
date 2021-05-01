@@ -1,5 +1,5 @@
-# Makefile.PL for a package defined by PP code.
-
+use strict;
+use warnings;
 use PDL::Core::Dev;            # Pick up development utilities
 use ExtUtils::MakeMaker;
 use Config;
@@ -10,8 +10,9 @@ use File::Spec;
 ## Search for netcdf library and include file
 #
 
+my $netcdf_lib_path;
 foreach my $libdir (
-		    $ENV{NETCDF_LIBDIR},
+		    $ENV{NETCDF_LIBDIR}||'',
 		    '/usr/local/netcdf/lib',
 		    '/usr/local/lib',
 		    '/opt/local/lib',
@@ -40,6 +41,7 @@ die "Cannot find netcdf library, libnetcdf.so or libnetcdf.a.
 Please set the environment variable NETCDF_LIBDIR to the correct library path or install NetCDF" 
   unless defined ($netcdf_lib_path);
 
+my $netcdf_include_path;
 foreach my $incdir (
 		    $ENV{NETCDF_INCDIR},
 		    '/usr/local/netcdf/include',
@@ -62,8 +64,8 @@ Please set the environment variable NETCDF_INCDIR to the correct include path or
   unless defined ($netcdf_include_path);
 
 # Check if compiled under gcc/Linux.  In which case, define bool for the compiler
-$define_bool = '';
-if ($Config{'osname'} =~ linux) {
+my $define_bool = '';
+if ($Config{'osname'} =~ /linux/) {
   $define_bool = '-Dbool=int';
   print "Defining bool=int (linux seems to need this)\n";
 }
@@ -78,14 +80,14 @@ open my $fh, '>', 'OPTIONS!' or die "Cannot write to OPTIONS! file";
 print  {$fh} Dumper(\%ncversion);
 close   $fh;
 
-$package = ["netcdf.pd",NetCDF,PDL::NetCDF];
+my $package = [qw(netcdf.pd NetCDF PDL::NetCDF)];
 WriteMakefile(
 	      'NAME'  	     => 'PDL::NetCDF',
 	      'AUTHOR'       => 'Douglas Hunt (dhunt@ucar.edu)',
 	      'PREREQ_PM'    => { PDL => 0 },
 	      'CCFLAGS'      => "$define_bool -g",  
 	      'VERSION_FROM' => 'netcdf.pd',
-	      'META_MERGE'   =>  {provides => {PDL::NetCDF => {file => 'netcdf.pd', version => 4.19}}},
+	      'META_MERGE'   =>  {provides => {'PDL::NetCDF' => {file => 'netcdf.pd', version => 4.19}}},
 	      'TYPEMAPS'     => [&PDL_TYPEMAP()], 
 	      'OBJECT'       => 'NetCDF.o ',
 	      'PM'           => { 'NetCDF.pm' => '$(INST_LIBDIR)/NetCDF.pm'},
