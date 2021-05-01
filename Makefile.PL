@@ -4,7 +4,6 @@ use PDL::Core::Dev;            # Pick up development utilities
 use ExtUtils::MakeMaker;
 use Config;
 use Data::Dumper;
-use File::Spec;
 
 # 
 ## Search for netcdf library and include file
@@ -70,10 +69,11 @@ if ($Config{'osname'} =~ /linux/) {
   print "Defining bool=int (linux seems to need this)\n";
 }
 
-my $devnull = File::Spec->devnull(); # Portable null device.
 my %ncversion = (); # Information on which netcdf functions/features available.
-$ncversion{'nc_inq_var_deflate'} = test_func_exists('nc_inq_var_deflate', 'HDF library installed',
-                                                    'nc_inq_var_deflate(0, 0, NULL, NULL, NULL);');
+$ncversion{'nc_inq_var_deflate'} = test_func_exists(
+  'nc_inq_var_deflate', 'HDF library installed',
+  'nc_inq_var_deflate(0, 0, NULL, NULL, NULL);'
+);
 
 # Write these options to a file--used by netcdf.pd during the 'make' step
 open my $fh, '>', 'OPTIONS!' or die "Cannot write to OPTIONS! file";
@@ -81,22 +81,15 @@ print  {$fh} Dumper(\%ncversion);
 close   $fh;
 
 my $package = [qw(netcdf.pd NetCDF PDL::NetCDF)];
-WriteMakefile(
-	      'NAME'  	     => 'PDL::NetCDF',
-	      'AUTHOR'       => 'Douglas Hunt (dhunt@ucar.edu)',
-	      'PREREQ_PM'    => { PDL => 0 },
-	      'CCFLAGS'      => "$define_bool -g",  
-	      'VERSION_FROM' => 'netcdf.pd',
-	      'META_MERGE'   =>  {provides => {'PDL::NetCDF' => {file => 'netcdf.pd', version => 4.19}}},
-	      'TYPEMAPS'     => [&PDL_TYPEMAP()], 
-	      'OBJECT'       => 'NetCDF.o ',
-	      'PM'           => { 'NetCDF.pm' => '$(INST_LIBDIR)/NetCDF.pm'},
-	      'INC'          => &PDL_INCLUDE()." -I$netcdf_include_path", 
-	      'LIBS'         => ["-L$netcdf_lib_path -lnetcdf $ENV{NETCDF_EXTRALIBS}"],  
-	      'clean'        => {'FILES'  => 
-				   'NetCDF.pm NetCDF.xs NetCDF.o NetCDF.c'},
-	      'dist'         => { COMPRESS => 'gzip', SUFFIX => 'gz' },	
-	      );
+my %hash = pdlpp_stdargs($package);
+my %more_items = (
+  'AUTHOR'       => 'Douglas Hunt (dhunt@ucar.edu)',
+  'PREREQ_PM'    => { PDL => 0 },
+);
+%hash = (%hash, %more_items);
+$hash{INC} .= " $define_bool -I$netcdf_include_path";
+$hash{LIBS}[0] .= "-L$netcdf_lib_path -lnetcdf $ENV{NETCDF_EXTRALIBS}";
+WriteMakefile(%hash);
 
 sub MY::postamble { pdlpp_postamble($package); }
 
@@ -132,6 +125,8 @@ sub compileAndRun {
   my $flags = shift;
   my $run   = shift;
   my $code  = shift;
+  require File::Spec;
+  my $devnull = File::Spec->devnull(); # Portable null device.
 
   open (OUT, ">temp.c");
   print OUT $code;
@@ -155,8 +150,3 @@ sub compileAndRun {
   unlink ('./temp.exe');
   return $res;
 }
-
-
-
-
-
