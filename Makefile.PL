@@ -33,6 +33,18 @@ my %more_items = (
   TEST_REQUIRES => {
     'Test::More' => '0.88', # done_testing
   },
+  META_MERGE => {
+    "meta-spec" => { version => 2 },
+    resources => {
+      bugtracker  => {web=>'https://github.com/PDLPorters/PDL-NetCDF/issues'},
+      repository  => {
+        url => 'git://github.com/PDLPorters/PDL-NetCDF.git',
+        type => 'git',
+        web => 'https://github.com/PDLPorters/PDL-NetCDF',
+      },
+      x_IRC => 'irc://irc.perl.org/#pdl',
+    },
+  },
 );
 %hash = (%hash, %more_items);
 $hash{INC} .= " $define_bool" if $define_bool;
