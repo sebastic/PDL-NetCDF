@@ -83,8 +83,17 @@ close   $fh;
 my $package = [qw(netcdf.pd NetCDF PDL::NetCDF)];
 my %hash = pdlpp_stdargs($package);
 my %more_items = (
-  'AUTHOR'       => 'Douglas Hunt (dhunt@ucar.edu)',
-  'PREREQ_PM'    => { PDL => 0 },
+  AUTHOR       => 'Douglas Hunt (dhunt@ucar.edu)',
+  PREREQ_PM => {
+    'PDL' => '2.043',
+  },
+  CONFIGURE_REQUIRES => {
+    'ExtUtils::MakeMaker' => '6.64', # TEST_REQUIRES
+    'PDL' => '2.043',
+  },
+  TEST_REQUIRES => {
+    'Test::More' => '0.88', # done_testing
+  },
 );
 %hash = (%hash, %more_items);
 $hash{INC} .= " $define_bool -I$netcdf_include_path";
