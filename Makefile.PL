@@ -3,7 +3,6 @@ use warnings;
 use PDL::Core::Dev;            # Pick up development utilities
 use ExtUtils::MakeMaker;
 use Devel::CheckLib qw(check_lib);
-use Data::Dumper;
 
 check_lib(
   header => 'netcdf.h', lib => 'netcdf',
@@ -16,17 +15,6 @@ if ($^O =~ /linux/) {
   print "Defining bool=int (linux seems to need this)\n";
 }
 
-my %ncversion = (); # Information on which netcdf functions/features available.
-$ncversion{'nc_inq_var_deflate'} = check_lib(
-  header => 'netcdf.h', lib => 'netcdf',
-  function => 'nc_inq_var_deflate(0, 0, NULL, NULL, NULL);',
-);
-
-# Write these options to a file--used by netcdf.pd during the 'make' step
-open my $fh, '>', 'OPTIONS!' or die "Cannot write to OPTIONS! file";
-print  {$fh} Dumper(\%ncversion);
-close   $fh;
-
 my $package = [qw(netcdf.pd NetCDF PDL::NetCDF)];
 my %hash = pdlpp_stdargs($package);
 my %more_items = (
@@ -38,6 +26,9 @@ my %more_items = (
     'Devel::CheckLib' => '1.14',
     'ExtUtils::MakeMaker' => '6.64', # TEST_REQUIRES
     'PDL' => '2.043',
+  },
+  BUILD_REQUIRES => {
+    'Devel::CheckLib' => '1.14',
   },
   TEST_REQUIRES => {
     'Test::More' => '0.88', # done_testing
