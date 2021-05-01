@@ -2,69 +2,16 @@ use strict;
 use warnings;
 use PDL::Core::Dev;            # Pick up development utilities
 use ExtUtils::MakeMaker;
-use Config;
+use Devel::CheckLib qw(check_lib);
 use Data::Dumper;
 
-# 
-## Search for netcdf library and include file
-#
-
-my $netcdf_lib_path;
-foreach my $libdir (
-		    $ENV{NETCDF_LIBDIR}||'',
-		    '/usr/local/netcdf/lib',
-		    '/usr/local/lib',
-		    '/opt/local/lib',
-		    '/usr/lib',
-		    '/usr/lib64',
-		    '/opt/lib',
-                    '/usr/local/lib64', # Added at request of Hernan De Angelis, 9/16/2013
-		                  # Add new library paths here!!
-		    ) {
-
-  if (-e "$libdir/libnetcdf.so") {
-    $netcdf_lib_path = $libdir;
-    print "Found libnetcdf.so at $libdir/libnetcdf.so\n";
-    last;
-  }
-
-  if (-e "$libdir/libnetcdf.a") {
-    $netcdf_lib_path = $libdir;
-    print "Found libnetcdf.a at $libdir/libnetcdf.a\n";
-    last;
-  }
-
-}
-
-die "Cannot find netcdf library, libnetcdf.so or libnetcdf.a.  
-Please set the environment variable NETCDF_LIBDIR to the correct library path or install NetCDF" 
-  unless defined ($netcdf_lib_path);
-
-my $netcdf_include_path;
-foreach my $incdir (
-		    $ENV{NETCDF_INCDIR},
-		    '/usr/local/netcdf/include',
-		    '/usr/local/include',
-		    '/opt/local/include',
-		    '/usr/include',
-		    '/opt/include',
-		                  # Add new header paths here!!
-		    ) {
-
-  if (-e "$incdir/netcdf.h") {
-    $netcdf_include_path = $incdir;
-    print "Found netcdf.h at $incdir/netcdf.h\n";
-    last;
-  }
-}
-
-die "Cannot find netcdf header file, netcdf.h.
-Please set the environment variable NETCDF_INCDIR to the correct include path or install NetCDF" 
-  unless defined ($netcdf_include_path);
+check_lib(
+  header => 'netcdf.h', lib => 'netcdf',
+) or die "Cannot find netcdf library. Please install NetCDF.";
 
 # Check if compiled under gcc/Linux.  In which case, define bool for the compiler
 my $define_bool = '';
-if ($Config{'osname'} =~ /linux/) {
+if ($^O =~ /linux/) {
   $define_bool = '-Dbool=int';
   print "Defining bool=int (linux seems to need this)\n";
 }
@@ -88,6 +35,7 @@ my %more_items = (
     'PDL' => '2.043',
   },
   CONFIGURE_REQUIRES => {
+    'Devel::CheckLib' => '1.14',
     'ExtUtils::MakeMaker' => '6.64', # TEST_REQUIRES
     'PDL' => '2.043',
   },
@@ -96,8 +44,8 @@ my %more_items = (
   },
 );
 %hash = (%hash, %more_items);
-$hash{INC} .= " $define_bool -I$netcdf_include_path";
-$hash{LIBS}[0] .= "-L$netcdf_lib_path -lnetcdf $ENV{NETCDF_EXTRALIBS}";
+$hash{INC} .= " $define_bool" if $define_bool;
+$hash{LIBS}[0] .= " -lnetcdf";
 WriteMakefile(%hash);
 
 sub MY::postamble { pdlpp_postamble($package); }
@@ -109,7 +57,7 @@ sub test_func_exists {
     $option = $func unless defined $option;
 
     # Test if PLplot has plsmem, for in memory plotting
-    eval { compileAndRun ("-I$netcdf_include_path -L$netcdf_lib_path -lnetcdf $ENV{NETCDF_EXTRALIBS}", 0, <<"EOC");
+    eval { compileAndRun ("-lnetcdf", 0, <<"EOC");
 #include <netcdf.h>
 main () {  $eval }
 EOC
@@ -135,6 +83,7 @@ sub compileAndRun {
   my $run   = shift;
   my $code  = shift;
   require File::Spec;
+  require Config;
   my $devnull = File::Spec->devnull(); # Portable null device.
 
   open (OUT, ">temp.c");
@@ -143,8 +92,8 @@ sub compileAndRun {
   unlink './temp'; # since we work out whether the compile succeeds by presence of this
   unlink './temp.exe'; # since we work out whether the compile succeeds by presence of this
 
-  my $cc = $Config{cc};
-  my $ccflags = $Config{ccflags};
+  my $cc = $Config::Config{cc};
+  my $ccflags = $Config::Config{ccflags};
   print "Trying: $cc $ccflags $flags temp.c -o temp\n";
 
   # The duplication of $flags seems to be necessary, as some systems
