@@ -325,7 +325,7 @@ None.
 
 =for ref
 
-Syncronize the data to the disk. Use this if you want to read
+Synchronize the data to the disk. Use this if you want to read
 the file from another process without closing the file. This makes only
 sense after put, puttext, putslice, putatt operations
 
@@ -428,7 +428,7 @@ the input name.
   # Get a global attribute
   my $attr2 = $ncobj->getatt ('attr_name');
 
-  # Get an attribute associated with the varibale 'var1'
+  # Get an attribute associated with the variable 'var1'
   my $attr1 = $ncobj->getatt ('double_attribute', 'var1');
 
 =head2 getDeflateShuffle
