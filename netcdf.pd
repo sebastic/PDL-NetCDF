@@ -1326,7 +1326,7 @@ sub new {
     $write = 1;
   }
     
-  if (-e $file or ($file =~ m{^http://})) {
+  if (-e $file or ($file =~ m{^https?://})) {
 
     if ($write) {
 
