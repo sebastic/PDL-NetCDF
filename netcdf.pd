@@ -1012,7 +1012,10 @@ use Fcntl; # importing constants O_CREAT,O_RDONLY,O_RDWR
 use constant DEBUG => 0;
 
 EOPM
-if ($Config{'ivsize'} == 8) { pp_addpm ('
+my $SIZE = $Config{'sizetype'} eq 'size_t'
+           ? $Config{'sizesize'}
+           : $Config{'ivsize'};
+if ($SIZE == 8) { pp_addpm ('
 use constant PACKTYPE => "Q*";
 ');
 } else { pp_addpm ('
