@@ -1,4 +1,5 @@
 - incorporate int-size patch from https://rt.cpan.org/Public/Bug/Display.html?id=80379 - thanks @sisyphus
+- incorporate Debian patches from https://rt.cpan.org/Public/Bug/Display.html?id=115393
 
 4.21 2021-05-01
 - build and metadata updates
