@@ -1031,7 +1031,7 @@ use constant PACKTYPE => "L*";
 # netCDF constants
 #-------------------------------------------------------------------------
 
-pp_addpm (<<'EOPM');
+pp_addpm pp_line_numbers(__LINE__, <<'EOPM');
 
 # These defines are taken from netcdf.h  I deemed this cleaner than using
 # h2xs and the autoload stuff, which mixes awkwardly with PP.
