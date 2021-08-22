@@ -386,7 +386,7 @@ putatt -- Attach a numerical or textual attribute to a NetCDF variable or the en
 
 Arguments:
 
-1) The attribute.  Either:  A one dimensional PDL (perhaps contining only one number) or
+1) The attribute.  Either:  A one dimensional PDL (perhaps containing only one number) or
 a string.
 
 2) The name to give the attribute in the netCDF file.  Many attribute names
