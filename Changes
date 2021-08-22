@@ -2,6 +2,9 @@
 - incorporate Debian patches from https://rt.cpan.org/Public/Bug/Display.html?id=115393
 - fix not recognising https URLs, reported in https://rt.cpan.org/Public/Bug/Display.html?id=131169
 - get method translates _FillValue to bad with PDL_BAD enabled - Heiko Klein, Norwegian Meteorological institute, from https://rt.cpan.org/Public/Bug/Display.html?id=67776
+- allow setting of _FillValue for netcdf4 files in put/putslice command,
+  since putatt does no longer work: Change of _FillValue not allowed after
+  data has been written. - Heiko Klein
 
 4.21 2021-05-01
 - build and metadata updates
