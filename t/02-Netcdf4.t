@@ -49,13 +49,25 @@ SKIP: {
     ok(1, 'get deflated variable');
     ok(eq_array([$outPdl->list], [$pdl->list]), "write/read equal");
 
+    # fillvalues
+    eval { $nc->put('var3', ['dim1', 'dim2'], $pdl, {DEFLATE => 7, SHUFFLE => 1, _FillValue => 5}) };
+    is($@, '', "put with deflate and _FillValue");
+    $nc->sync;
+    my $pOut = eval { $nc->get('var3',{PDL_BAD => 1}) };
+    is($@, '', "retrieved var3");
+    if (defined $pOut) {
+      ok($pOut->isbad->sum == 1, "default fill-value detected in nc") or diag "got:$pOut";
+    }
+    eval { $nc->putslice('var4', ['dim1','dim2','dim3'],[3,2,2],[0,0,0],[3,2,1],$pdl, {DEFLATE => 8, SHUFFLE => 1, _FillValue => 5}) };
+    is($@, '', "putslice with deflate and _FillValue");
+    ok(eq_array([8,1], [$nc->getDeflateShuffle('var4')]), "deflateShuffle for var4");
     # default fill value
     my $pdlFill = $pdl->copy;
     $pdlFill->slice("0,0") .= PDL::NetCDF::NC_FILL_FLOAT();
-    $nc->put ('var4', ['dim1', 'dim2'], $pdlFill, {DEFLATE => 7, SHUFFLE => 1});
+    $nc->put ('var5', ['dim1', 'dim2'], $pdlFill, {DEFLATE => 7, SHUFFLE => 1});
     ok(1, "put with deflate and no _FillValue");
     $nc->sync;
-    my $pOut = $nc->get('var4',{PDL_BAD => 1});
+    $pOut = $nc->get('var5',{PDL_BAD => 1});
     ok(($pOut->isbad)->sum == 1, "default fill-value detected in nc");
 
     unlink $bar if -f $bar;

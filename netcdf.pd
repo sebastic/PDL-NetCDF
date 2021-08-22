@@ -30,7 +30,7 @@ binary gridded files via PDL objects.
   # lengths are taken from the PDL, in this case, dim1 = 2 and dim2 = 3.      
   $ncobj->put ('var1', ['dim1', 'dim2'], $pdl);
   # or for netcdf4 files
-  # $ncobj->put ('var1', ['dim1', 'dim2'], $pdl, {DEFLATE => 9});  
+  # $ncobj->put ('var1', ['dim1', 'dim2'], $pdl, {DEFLATE => 9, _FillValue => -999});
 
   # get the deflate level (for any fileformat)
   my ($deflate, $shuffle) = $ncobj->getDeflateShuffle('var1');
@@ -242,7 +242,7 @@ Arguments:
 3) The PDL to put.  It must have the same number of dimensions
 as specified in the dimension name list.
 
-4) Optional options hashref: {SHUFFLE => 1, DEFLATE => 7, COMPRESS => 0}
+4) Optional options hashref: {SHUFFLE => 1, DEFLATE => 7, COMPRESS => 0, _FillValue => -32767}
 
 Returns:
 None.
@@ -287,10 +287,15 @@ Arguments:
    arguments.  The 2nd and 3rd argument are optional if the variable is already
    defined in the netcdf object. 
 
-7) Optional options: {DEFLATE => 7, SHUFFLE => 0/1} will use gzip compression (level 7)
+7) Optional options: {DEFLATE => 7, SHUFFLE => 0/1, _FillValue => -32767} will use
+   gzip compression (level 7)
    on that variable and shuffle will not/will use the shuffle filter. These options are
    only valid for netcdf4 files. If you are unsure, test with 
    ($nc->getFormat >= PDL::NetCDF::NC_FORMAT::NC_FORMAT_NETCDF4)  
+
+   In addition, netcdf4 does not allow changing the _FillValue attribute
+   after the variable has been put/putslice'd. Therefore, the _FillValue
+   can be set with an option to put/putslice.
 
 Returns:
 None.
@@ -1596,6 +1601,7 @@ sub put {
   my $compress = delete $opt->{COMPRESS} || 0;
   my $deflate = delete $opt->{DEFLATE} || 0;
   my $shuffle = delete $opt->{SHUFFLE} || 0;
+  my $fillValue = delete $opt->{_FillValue};
   barf ("Unknown options to put: ". join(",", keys %{$opt})) if (keys %{$opt});
   
   if ($self->{REVERSE_DIMS}) {
@@ -1663,6 +1669,13 @@ sub put {
     }
     $self->{DATATYPES}{$varnm} = $datatype;
 
+  }
+
+  # set _FillValue before data
+  if (defined $fillValue) {
+    $fillValue = PDL->zeroes($pdl->type, 1) + $fillValue
+      if !ref $fillValue; # make it a pdl
+    $self->putatt($fillValue, '_FillValue', $varnm);
   }
 
   # Make PDL physical
@@ -1746,6 +1759,7 @@ sub putslice {
   my $opt = shift || {}; # options for deflate/shuffle
   my $deflate = delete $opt->{DEFLATE} || 0;
   my $shuffle = delete $opt->{SHUFFLE} || 0;
+  my $fillValue = delete $opt->{_FillValue};
   barf ("Unknown options to putslice: ". join(",", keys %{$opt})) if (keys %{$opt});
 
   if ($self->{REVERSE_DIMS}) {
@@ -1814,6 +1828,11 @@ sub putslice {
 
   }
 
+  if (defined $fillValue) {
+    $fillValue = PDL->zeroes($pdl->type, 1) + $fillValue
+      if !ref $fillValue; # make it a pdl
+    $self->putatt($fillValue, '_FillValue', $varnm);
+  }
 
   # Make PDL physical
   $pdl->make_physical;
@@ -2048,7 +2067,6 @@ sub dimsize {
 }
 
 
-
 # Put a netCDF attribute from a PDL or string
 sub putatt {
   my $self  = shift;  # name of object
@@ -2120,7 +2138,6 @@ sub putatt {
   }
 
   return 0;
-
 }
 
 
