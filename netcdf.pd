@@ -23,7 +23,7 @@ binary gridded files via PDL objects.
   use PDL::NetCDF;
   use PDL::Char;
 
-  my $ncobj = PDL::NetCDF->new ("test.nc", {REVERSE_DIMS => 1});  # New file
+  my $ncobj = PDL::NetCDF->new ("test.nc", {REVERSE_DIMS => 1, PDL_BAD => 1});  # New file
   my $pdl = pdl [[1, 2, 3], [4, 5, 6]];
 
   # Specify variable name to put PDL in, plus names of the dimensions.  Dimension         
@@ -179,10 +179,12 @@ Create an object representing a netCDF file.
     arrays.  This takes longer, but gives the correct results.  If
     the fetch of a string array yields only the first element, try setting
     this option.
+    PDL_BAD:
+    _FillValue's or missing_values are translated to bad-pdls.
 
 Example:
 
-  my $nc = PDL::NetCDF->new ("file1.nc", {REVERSE_DIMS => 1});
+  my $nc = PDL::NetCDF->new ("file1.nc", {REVERSE_DIMS => 1, PDL_BAD => 1});
   ...
   foreach my $ncfile (@a_bunch_of_similar_format_netcdf_files) {
     $nc = PDL::NetCDF->new("file2.nc", {TEMPLATE => $nc});  # These calls to 'new' are *much* faster
@@ -359,10 +361,12 @@ must be specified:
 
 3) A pdl which specifies the N dimensional count of the slice.
 
-Also, an options hashref may be passed.  The only option currently
-is 'NOCOMPRESS' which tells PDL::NetCDF to *not* try to uncompress 
+Also, an options hashref may be passed.  The option 'NOCOMPRESS'
+tells PDL::NetCDF to *not* try to uncompress
 an compressed variable.  See the COMPRESS option on 'put' and 'putslice'
 for more info.
+The option 'PDL_BAD' tells PDL::NetCDF to translate _FillValue
+or missing_value attributes to bad-values, e.g. NaN's.
 
 Returns:
 The PDL representing the netCDF variable.  Barfs on error.
@@ -371,7 +375,7 @@ The PDL representing the netCDF variable.  Barfs on error.
 
   # A slice of the netCDF variable.
   # [0,0] is the starting point, [1,2] is the count.
-  my $slice  = $ncobj->get ('var1', [0,0], [1,2], {NOCOMPRESS => 1});
+  my $slice  = $ncobj->get ('var1', [0,0], [1,2], {NOCOMPRESS => 1, PDL_BAD => 1});
 
   # If var1 contains this:  [[1, 2, 3], [4, 5, 6]]
   # Then $slice contains: [1,2] (Size '1' dimensions are eliminated).
@@ -1037,6 +1041,12 @@ sub NC_FILL_SHORT () { return -32767; }
 sub NC_FILL_INT () { return -2147483647; }
 sub NC_FILL_FLOAT () { return 9.9692099683868690e+36; } # near 15 * 2^119 
 sub NC_FILL_DOUBLE () { return 9.9692099683868690e+36; }
+sub NC_FILL_UBYTE () { return 255; }
+sub NC_FILL_USHORT () { return 65535; }
+sub NC_FILL_UINT () { return 4294967295; }
+sub NC_FILL_INT64 () { return -9223372036854775806; }
+sub NC_FILL_UINT64 () { return 18446744073709551614; }
+sub NC_FILL_STRING () { return ""; }
 
 sub NC_FORMAT_CLASSIC () { return 1; }
 sub NC_FORMAT_64BIT () { return 2; }
@@ -1219,6 +1229,20 @@ my %typemap8 = (
 		PDL::ushort->[0]   => sub { PDL::NetCDF::nc_put_vara_ushort    (@_); },
 		PDL::longlong->[0]   => sub { PDL::NetCDF::nc_put_vara_longlong    (@_); },
 		);
+
+my %fillmap = (
+	       NC_BYTE()   => NC_FILL_BYTE(),
+	       NC_CHAR()   => NC_FILL_CHAR(),
+	       NC_SHORT()  => NC_FILL_SHORT(),
+	       NC_INT()    => NC_FILL_INT(),
+	       NC_FLOAT()  => NC_FILL_FLOAT(),
+	       NC_DOUBLE() => NC_FILL_DOUBLE(),
+	       NC_UBYTE()   => NC_FILL_UBYTE(),
+	       NC_USHORT()  => NC_FILL_USHORT(),
+	       NC_UINT()    => NC_FILL_UINT(),
+	       NC_INT64()    => NC_FILL_INT64(),
+	       NC_UINT64()    => NC_FILL_UINT64(),
+	       );
 
 # maps original type to compressed type
 my %compressionMap = (
@@ -1639,7 +1663,6 @@ sub put {
         my $rc = PDL::NetCDF::nc_def_var_deflate($self->{NCID}, $self->{VARIDS}{$varnm}, $shuffle, $doDeflate, $deflate);
         barf ("put: Cannot shuffle/deflate variable -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
     }
-
     $self->{DATATYPES}{$varnm} = $datatype;
 
   }
@@ -1705,9 +1728,7 @@ sub put {
     }
 
   }
-
   return 0;
-
 }
 
 #
@@ -1728,8 +1749,7 @@ sub putslice {
   my $deflate = delete $opt->{DEFLATE} || 0;
   my $shuffle = delete $opt->{SHUFFLE} || 0;
   barf ("Unknown options to putslice: ". join(",", keys %{$opt})) if (keys %{$opt});
-  
-  
+
   if ($self->{REVERSE_DIMS}) {
       $dims = [ reverse @$dims ];
       $dimdefs = [ reverse @$dimdefs ];
@@ -1820,7 +1840,6 @@ sub putslice {
   barf ("put:  Cannot write file -- " . PDL::NetCDF::nc_strerror ($rc)) if $rc;
   
   return 0;
-
 }
 EOPM
 
@@ -1855,6 +1874,12 @@ sub _recursiveGetStringSlice {
             _recursiveGetStringSlice($self, $varnm, $pdl, $start, $count, \@thisStart, $loopPos+1);
         }
     }
+}
+
+# Get the explicit or default _FillValue for a variable
+sub _getFillValue {
+  my ($self, $varnm) = @_;
+  eval { $self->getatt('_FillValue', $varnm) } // $fillmap{$self->{DATATYPES}{$varnm}};
 }
 
 # Get a variable into a pdl
@@ -1978,7 +2003,7 @@ sub get {
         print "In get(): why am I uncompressing?\n" if ($self->{DEBUG});
 	my $scale_factor = $self->getatt('scale_factor', $varnm);
         my $add_offset   = $self->getatt('add_offset',   $varnm);
-        my $fill         = eval { $self->getatt('_FillValue',   $varnm); };
+        my $fill         = $self->_getFillValue($varnm);
         $fill = $fill->at(0) if (ref($fill) =~ /PDL/);	# convert to perl scalar
         my $uncomp;
       if      ($type == NC_FLOAT()) {
@@ -1996,11 +2021,14 @@ sub get {
     }
   }
 
-  # convert netcdf missing values to PDL badvals if requested and missing value is available
-  if (exists($self->{PDL_BAD})) {
-    my $missing = eval { $self->getatt('_FillValue',   $varnm); };
-    $missing = eval { $self->getatt('missing_value',   $varnm); } unless (defined($missing));
-    $missing = $missing->sclr if (ref($missing) =~ /PDL/); # Convert PDLs to scalars. D. Hunt 2005.10.23
+  # convert netcdf fill/missing values to PDL badvals if requested and missing value is available
+  if ($self->{PDL_BAD} || $opt->{PDL_BAD}) {
+    my $fill = $self->_getFillValue($varnm);
+    $fill = $fill->sclr if UNIVERSAL::isa($missing, 'PDL');
+    $pdl->inplace->setvaltobad($fill) if (defined($fill));
+    print "In get(): _FillValue = $fill, pdl[info] = ", $pdl->info, "\n" if ($self->{DEBUG});
+    my $missing = eval { $self->getatt('missing_value', $varnm); };
+    $missing = $missing->sclr if UNIVERSAL::isa($missing, 'PDL');
     $pdl->inplace->setvaltobad($missing) if (defined($missing));
     print "In get(): missing = $missing, pdl[info, first, last] = ", $pdl->info, " ", $pdl->at(0), " ", $pdl->at($pdl->nelem-1), "\n" if ($self->{DEBUG});
   }
