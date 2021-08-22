@@ -1034,7 +1034,7 @@ use constant PACKTYPE => "L*";
 pp_addpm (<<'EOPM');
 
 # These defines are taken from netcdf.h  I deemed this cleaner than using
-# h2xs and the autoload stuff, which mixes alkwardly with PP.
+# h2xs and the autoload stuff, which mixes awkwardly with PP.
 sub NC_FILL_BYTE () { return -127; }
 sub NC_FILL_CHAR () { return 0; }
 sub NC_FILL_SHORT () { return -32767; }
