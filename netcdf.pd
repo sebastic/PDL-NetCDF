@@ -1116,9 +1116,7 @@ sub NC_USHORT () { return 8; }   # unsigned 2-byte int
 sub NC_UINT () { return 9; }     # unsigned 4-byte int
 sub NC_INT64 () { return 10; }   # signed 8-byte int
 sub NC_UINT64 () { return 11; }  # unsigned 8-byte int
-EOPM
 
-pp_addpm (<<'EOPM');
 # Used for creating new blank pdls with the input number of dimensions, and
 # the correct type.
 my %typemap = (
@@ -1841,9 +1839,6 @@ sub putslice {
   
   return 0;
 }
-EOPM
-
-pp_addpm (<<'EOPM');
 
 sub _recursiveGetStringSlice {
     my ($self, $varnm, $pdl, $start, $count, $curStart, $loopPos) = @_;
@@ -2038,9 +2033,7 @@ sub get {
 
   return $pdl;
 }
-EOPM
 
-pp_addpm (<<'EOPM');
 # Get the size of a dimension
 sub dimsize {
   my $self  = shift;
