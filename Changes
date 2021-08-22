@@ -1,3 +1,4 @@
+4.22 2021-08-22
 - incorporate int-size patch from https://rt.cpan.org/Public/Bug/Display.html?id=80379 - thanks @sisyphus
 - incorporate Debian patches from https://rt.cpan.org/Public/Bug/Display.html?id=115393
 - fix not recognising https URLs, reported in https://rt.cpan.org/Public/Bug/Display.html?id=131169
